@@ -1,0 +1,269 @@
+I"��<h1 id="spring-aop-实战">Spring AOP 实战</h1>
+
+<h2 id="一aop介绍">一、AOP介绍</h2>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	在软件业，AOP为Aspect Oriented Programming的缩写，意为：面向切面编程，通过预编译方式和运行期动态代理实现程序功能的统一维护的一种技术。AOP是OOP的延续，是软件开发中的一个热点，也是Spring框架中的一个重要内容，是函数式编程的一种衍生范型。利用AOP可以对业务逻辑的各个部分进行隔离，从而使得业务逻辑各部分之间的耦合度降低，提高程序的可重用性，同时提高了开发的效率。        <span class="nt">--</span>百度百科
+</code></pre></div></div>
+
+<p>​		 AOP是Spring框架面向切面的编程思想，AOP采用一种称为“横切”的技术，将涉及多业务流程的通用功能抽取并单独封装，形成独立的切面，在合适的时机将这些切面横向切入到业务流程指定的位置中。</p>
+
+<p>​		 用自己通俗易懂的话来讲：业务流程大致是从request-&gt;controller-&gt;service-&gt;dao-&gt;db，一种竖着的结构，而AOP就是横向织入业务流程</p>
+
+<h2 id="二术语定义">二、术语定义</h2>
+
+<ul>
+  <li>
+    <p><strong>Aspect（切面）</strong>*： Aspect 声明类似于 Java 中的类声明，在 Aspect 中会包含着一些 Pointcut 以及相应的 Advice。</p>
+  </li>
+  <li>
+    <p><strong>Joint point（连接点）</strong>：表示在程序中明确定义的点，典型的包括方法调用，对类成员的访问以及异常处理程序块的执行等等，它自身还可以嵌套其它 joint point。</p>
+  </li>
+  <li>
+    <p><strong>Pointcut（切点）</strong>：表示一组 joint point，这些 joint point 或是通过逻辑关系组合起来，或是通过通配、正则表达式等方式集中起来，它定义了相应的 Advice 将要发生的地方。</p>
+  </li>
+  <li>
+    <p><strong>Advice（增强）</strong>：Advice 定义了在 Pointcut 里面定义的程序点具体要做的操作，它通过 before、after 和 around 来区别是在每个 joint point 之前、之后还是代替执行的代码。</p>
+  </li>
+  <li>
+    <p><strong>Target（目标对象）</strong>：织入 Advice 的目标对象.。</p>
+  </li>
+  <li>
+    <p><strong>Weaving（织入）</strong>：将 Aspect 和其他对象连接起来, 并创建 Adviced object 的过程</p>
+  </li>
+</ul>
+
+<p>​		术语可能不太好理解，用于一个类比关系就是<code class="highlighter-rouge">Aspect</code>就是定义在项目中的xxxAOP,<code class="highlighter-rouge">Joint point</code>是项目中所有请求内容，<code class="highlighter-rouge">pointcut</code>是用于记录的对象，可以是Controller也可以是Annotation</p>
+
+<h2 id="三项目实战">三、项目实战</h2>
+
+<h3 id="1日志记录">1、日志记录</h3>
+
+<p>​		AOP最常见的一个功能就是日志记录。常用于出入参信息记录，敏感操作记录。</p>
+
+<h4 id="出入参记录">①出入参记录</h4>
+
+<p>​		开发阶段或者生产阶段对于bug的出现，有时候可能是由数据造成的问题而非代码的问题，这时可以利用Aop记录出入参数，观看参数是否符合预期：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@Before</span><span class="o">(</span><span class="s">"log() "</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">exBefore</span><span class="o">(</span><span class="nc">JoinPoint</span> <span class="n">joinPoint</span><span class="o">)</span> <span class="o">{</span>
+        <span class="nc">ServletRequestAttributes</span> <span class="n">requestAttributes</span> <span class="o">=</span> <span class="o">(</span><span class="nc">ServletRequestAttributes</span><span class="o">)</span> <span class="nc">RequestContextHolder</span><span class="o">.</span><span class="na">getRequestAttributes</span><span class="o">();</span>
+        <span class="nc">HttpServletRequest</span> <span class="n">request</span> <span class="o">=</span> <span class="n">requestAttributes</span><span class="o">.</span><span class="na">getRequest</span><span class="o">();</span>
+        <span class="nc">Object</span><span class="o">[]</span> <span class="n">args</span> <span class="o">=</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getArgs</span><span class="o">();</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"请求url:{}"</span><span class="o">,</span> <span class="n">request</span><span class="o">.</span><span class="na">getRequestURL</span><span class="o">());</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"请求type:{}"</span><span class="o">,</span> <span class="n">request</span><span class="o">.</span><span class="na">getMethod</span><span class="o">());</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"请求method:{}"</span><span class="o">,</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getSignature</span><span class="o">());</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"请求参数args:{}"</span><span class="o">,</span> <span class="nc">Arrays</span><span class="o">.</span><span class="na">toString</span><span class="o">(</span><span class="n">args</span><span class="o">));</span>
+    <span class="o">}</span>
+
+	<span class="nd">@After</span><span class="o">(</span><span class="s">"log()"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">exAfter</span><span class="o">(</span><span class="nc">JoinPoint</span> <span class="n">joinPoint</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"class method:{}.{}执行完毕!"</span><span class="o">,</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getSignature</span><span class="o">().</span><span class="na">getDeclaringTypeName</span><span class="o">(),</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getSignature</span><span class="o">().</span><span class="na">getName</span><span class="o">());</span>
+    <span class="o">}</span>
+
+    <span class="nd">@AfterReturning</span><span class="o">(</span><span class="n">returning</span> <span class="o">=</span> <span class="s">"result"</span><span class="o">,</span><span class="n">pointcut</span> <span class="o">=</span> <span class="s">"log()"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">exAfterRunning</span><span class="o">(</span><span class="nc">Object</span> <span class="n">result</span><span class="o">){</span>
+        <span class="n">log</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"执行返回值:{}"</span><span class="o">,</span><span class="no">JSON</span><span class="o">.</span><span class="na">toJSON</span><span class="o">(</span><span class="n">result</span><span class="o">));</span>
+    <span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="操作记录">②操作记录</h4>
+
+<p>​		对于一些比较重要的操作，譬如系统管理，这是一个系统里面操作比较少的功能，但每一个都是比较重要的功能，所以对于这些操作需要利用AOP记录下来，然后写入DB数据库，方便查看：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@Pointcut</span><span class="o">(</span><span class="n">value</span> <span class="o">=</span> <span class="s">"@annotation(com.njzhxt.spaas.common.annotion.BussinessLog)"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">cutService</span><span class="o">()</span> <span class="o">{</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Around</span><span class="o">(</span><span class="s">"cutService()"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="nc">Object</span> <span class="nf">recordSysLog</span><span class="o">(</span><span class="nc">ProceedingJoinPoint</span> <span class="n">point</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">Throwable</span> <span class="o">{</span>
+        <span class="c1">//先执行业务</span>
+        <span class="nc">Object</span> <span class="n">result</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="na">proceed</span><span class="o">();</span>
+        <span class="k">try</span> <span class="o">{</span>
+            <span class="n">handle</span><span class="o">(</span><span class="n">point</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="nc">Exception</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">log</span><span class="o">.</span><span class="na">error</span><span class="o">(</span><span class="s">"日志记录出错!"</span><span class="o">,</span> <span class="n">e</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">private</span> <span class="kt">void</span> <span class="nf">handle</span><span class="o">(</span><span class="nc">ProceedingJoinPoint</span> <span class="n">point</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="c1">//获取拦截的方法名</span>
+        <span class="nc">Signature</span> <span class="n">sig</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="na">getSignature</span><span class="o">();</span>
+        <span class="nc">MethodSignature</span> <span class="n">msig</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(!(</span><span class="n">sig</span> <span class="k">instanceof</span> <span class="nc">MethodSignature</span><span class="o">))</span> <span class="o">{</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">IllegalArgumentException</span><span class="o">(</span><span class="s">"该注解只能用于方法"</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="n">msig</span> <span class="o">=</span> <span class="o">(</span><span class="nc">MethodSignature</span><span class="o">)</span> <span class="n">sig</span><span class="o">;</span>
+        <span class="nc">Object</span> <span class="n">target</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="na">getTarget</span><span class="o">();</span>
+        <span class="nc">Method</span> <span class="n">currentMethod</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="na">getClass</span><span class="o">().</span><span class="na">getMethod</span><span class="o">(</span><span class="n">msig</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">msig</span><span class="o">.</span><span class="na">getParameterTypes</span><span class="o">());</span>
+        <span class="nc">String</span> <span class="n">methodName</span> <span class="o">=</span> <span class="n">currentMethod</span><span class="o">.</span><span class="na">getName</span><span class="o">();</span>
+        <span class="nc">String</span> <span class="n">className</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="na">getTarget</span><span class="o">().</span><span class="na">getClass</span><span class="o">().</span><span class="na">getName</span><span class="o">();</span>
+
+        <span class="c1">//获取操作名称</span>
+        <span class="nc">BussinessLog</span> <span class="n">annotation</span> <span class="o">=</span> <span class="n">currentMethod</span><span class="o">.</span><span class="na">getAnnotation</span><span class="o">(</span><span class="nc">BussinessLog</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="nc">String</span> <span class="n">bussinessName</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+        <span class="nc">String</span> <span class="n">key</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="na">key</span><span class="o">();</span>
+        <span class="nc">Class</span> <span class="n">dictClass</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="na">dict</span><span class="o">();</span>
+        <span class="nc">Object</span> <span class="n">arg</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="na">getArgs</span><span class="o">()[</span><span class="mi">0</span><span class="o">];</span>
+        <span class="nc">String</span> <span class="n">msg</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">bussinessName</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"修改"</span><span class="o">)</span> <span class="o">||</span> <span class="n">bussinessName</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"编辑"</span><span class="o">))</span> <span class="o">{</span>
+            <span class="nc">Object</span> <span class="n">obj1</span> <span class="o">=</span> <span class="nc">LogObjectHolder</span><span class="o">.</span><span class="na">me</span><span class="o">().</span><span class="na">get</span><span class="o">();</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="nc">Contrast</span><span class="o">.</span><span class="na">contrastObj</span><span class="o">(</span><span class="n">dictClass</span><span class="o">,</span> <span class="n">key</span><span class="o">,</span> <span class="n">obj1</span><span class="o">,</span> <span class="n">arg</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="nc">AbstractDictMap</span> <span class="n">dictMap</span> <span class="o">=</span> <span class="o">(</span><span class="nc">AbstractDictMap</span><span class="o">)</span> <span class="n">dictClass</span><span class="o">.</span><span class="na">newInstance</span><span class="o">();</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="nc">Contrast</span><span class="o">.</span><span class="na">parseMutiKey</span><span class="o">(</span><span class="n">dictMap</span><span class="o">,</span> <span class="n">key</span><span class="o">,</span> <span class="n">arg</span><span class="o">);</span>
+        <span class="o">}</span>
+
+        <span class="n">operationLogService</span><span class="o">.</span><span class="na">insertOperationLog</span><span class="o">(</span><span class="nc">LogType</span><span class="o">.</span><span class="na">BUSSINESS</span><span class="o">,</span><span class="nc">LogSucceed</span><span class="o">.</span><span class="na">SUCCESS</span><span class="o">,</span><span class="n">bussinessName</span><span class="o">,</span><span class="n">className</span><span class="o">,</span><span class="n">methodName</span><span class="o">,</span><span class="n">msg</span><span class="o">);</span>
+    <span class="o">}</span>
+</code></pre></div></div>
+
+<p><img src="http://image.yangyhao.top/image-20191204102820565.png" alt="image-20191204102820565" /></p>
+
+<h3 id="2参数校验">2、参数校验</h3>
+
+<p>​		我们进行业务代码编写的时候经常需要对参数进行校验，看是否符合预期，那么就会写下如下的代码：</p>
+
+<p><img src="http://image.yangyhao.top/image-20191204103202906.png" alt="image-20191204103202906" /></p>
+
+<p>​		写多了，就会感觉很麻烦，那么有没有能够优化体验的呢？</p>
+
+<p>​		肯定有，那就是<a href="https://www.ibm.com/developerworks/cn/java/j-lo-jsr303/index.html">JSR303数据校验</a></p>
+
+<p>​		写法如下：</p>
+
+<p>​		1）首先在需要校验的对象上面加上JSR303的注解，比如<code class="highlighter-rouge">@Length</code>，<code class="highlighter-rouge">@NotBlank</code></p>
+
+<p>​		2）在controller上对对象加上@Valid注解，后面加上参数<code class="highlighter-rouge">BindingResult</code></p>
+
+<p>​		3）然后在处理业务之前判断校验是否有错误，有错误就抛出异常</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="nc">ResponseData</span> <span class="nf">add</span><span class="o">(</span><span class="nd">@RequestBody</span> <span class="nd">@Valid</span> <span class="nc">MenuDTO</span> <span class="n">menuDTO</span><span class="o">,</span> <span class="nc">BindingResult</span> <span class="n">result</span><span class="o">){</span>
+        <span class="k">if</span><span class="o">(</span><span class="n">result</span><span class="o">.</span><span class="na">hasErrors</span><span class="o">()){</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">RuntimeException</span><span class="o">();</span>
+        <span class="o">}</span>
+		<span class="o">...</span>       
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>​		这样看起来简单了很多，但是每一个业务方法还是需要判断参数是否有错误，看起来还是不够简洁啊，那么AOP可以从中作出哪些优化呢？</p>
+
+<p>​		思路很简单，AOP可以获取到SpringMVC的入参，然后如果有BindingResult的则统一进行校验即可：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@Before</span><span class="o">(</span><span class="s">"log() "</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">exBefore</span><span class="o">(</span><span class="nc">JoinPoint</span> <span class="n">joinPoint</span><span class="o">)</span> <span class="o">{</span>
+        <span class="nc">Object</span><span class="o">[]</span> <span class="n">args</span> <span class="o">=</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getArgs</span><span class="o">();</span>
+        <span class="k">for</span> <span class="o">(</span><span class="nc">Object</span> <span class="n">arg</span> <span class="o">:</span><span class="n">args</span><span class="o">){</span>
+            <span class="k">if</span><span class="o">(</span><span class="n">arg</span> <span class="k">instanceof</span> <span class="nc">BindingResult</span><span class="o">){</span>
+                <span class="nc">BindingResult</span> <span class="n">bindingResult</span> <span class="o">=</span> <span class="o">(</span><span class="nc">BindingResult</span><span class="o">)</span> <span class="n">arg</span><span class="o">;</span>
+                <span class="nc">APIResult</span> <span class="n">result</span> <span class="o">=</span> <span class="k">this</span><span class="o">.</span><span class="na">vaildReuqestParams</span><span class="o">(</span><span class="n">bindingResult</span><span class="o">);</span>
+                <span class="k">if</span><span class="o">(!</span><span class="n">result</span><span class="o">.</span><span class="na">isSuccess</span><span class="o">()){</span>
+                    <span class="c1">//如果绑定失败则抛出异常</span>
+                    <span class="k">throw</span> <span class="k">new</span> <span class="nf">BindErrorException</span><span class="o">(</span><span class="n">result</span><span class="o">.</span><span class="na">getData</span><span class="o">().</span><span class="na">toString</span><span class="o">());</span>
+                <span class="o">}</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+	<span class="kd">private</span> <span class="nc">APIResult</span> <span class="nf">vaildReuqestParams</span><span class="o">(</span><span class="nc">BindingResult</span> <span class="n">bindingResult</span><span class="o">){</span>
+        <span class="k">if</span><span class="o">(</span><span class="n">bindingResult</span><span class="o">.</span><span class="na">hasErrors</span><span class="o">()){</span>
+            <span class="nc">List</span><span class="o">&lt;</span><span class="nc">ObjectError</span><span class="o">&gt;</span> <span class="n">allErrors</span> <span class="o">=</span> <span class="n">bindingResult</span><span class="o">.</span><span class="na">getAllErrors</span><span class="o">();</span>
+            <span class="nc">List</span><span class="o">&lt;</span><span class="nc">String</span><span class="o">&gt;</span> <span class="n">list</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ArrayList</span><span class="o">&lt;&gt;();</span>
+            <span class="k">for</span> <span class="o">(</span><span class="nc">ObjectError</span> <span class="n">error</span> <span class="o">:</span><span class="n">allErrors</span><span class="o">){</span>
+                <span class="nc">FieldError</span> <span class="n">fieldError</span> <span class="o">=</span> <span class="o">(</span><span class="nc">FieldError</span><span class="o">)</span> <span class="n">error</span><span class="o">;</span>
+                <span class="c1">//错误信息拼接</span>
+                <span class="n">list</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">fieldError</span><span class="o">.</span><span class="na">getField</span><span class="o">()+</span><span class="n">error</span><span class="o">.</span><span class="na">getDefaultMessage</span><span class="o">());</span>
+            <span class="o">}</span>
+            <span class="k">return</span> <span class="nc">APIResult</span><span class="o">.</span><span class="na">error</span><span class="o">(</span><span class="nc">BaseEnum</span><span class="o">.</span><span class="na">PARAM_HAS_ERROR</span><span class="o">,</span><span class="n">list</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="nc">APIResult</span><span class="o">.</span><span class="na">ok</span><span class="o">();</span>
+    <span class="o">}</span>
+</code></pre></div></div>
+
+<p>​		那这样就可以很愉快的抛弃繁琐的参数校验了</p>
+
+<h3 id="3插入检查">3、插入检查</h3>
+
+<p>​		对于Insert和Update操作，关键字段的数据重复肯定是无法接受的，所以我们写代码在插入数据之前肯定会有重复性检查：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>List&lt;Menu&gt; exist = sqlManager.query(Menu.class)
+                .andEq("name", menuDTO.getName())
+                .andEq("code", menuDTO.getCode())
+                .select();
+</code></pre></div></div>
+
+<p>​		其实这些操作完成可以通过AOP实现：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@Pointcut</span><span class="o">(</span><span class="n">value</span> <span class="o">=</span> <span class="s">"@annotation(com.njzhxt.spaas.common.annotion.InsertCheck)"</span><span class="o">)</span>
+    <span class="kd">private</span> <span class="kt">void</span> <span class="nf">check</span><span class="o">()</span> <span class="o">{</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Before</span><span class="o">(</span><span class="s">"check()"</span><span class="o">)</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">insertCheck</span><span class="o">(</span><span class="nc">JoinPoint</span> <span class="n">joinPoint</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">IllegalAccessException</span> <span class="o">{</span>
+        <span class="nc">MethodSignature</span> <span class="n">ms</span> <span class="o">=</span> <span class="o">(</span><span class="nc">MethodSignature</span><span class="o">)</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getSignature</span><span class="o">();</span>
+        <span class="nc">Method</span> <span class="n">method</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="na">getMethod</span><span class="o">();</span>
+        <span class="c1">//获取注解</span>
+        <span class="nc">InsertCheck</span> <span class="n">annotation</span> <span class="o">=</span> <span class="n">method</span><span class="o">.</span><span class="na">getAnnotation</span><span class="o">(</span><span class="nc">InsertCheck</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="c1">//获取注解内的参数</span>
+        <span class="nc">String</span><span class="o">[]</span> <span class="n">eqFields</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="na">eqFields</span><span class="o">();</span>
+        <span class="nc">String</span><span class="o">[]</span> <span class="n">noEqFields</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="na">noEqFields</span><span class="o">();</span>
+        <span class="nc">Object</span><span class="o">[]</span> <span class="n">args</span> <span class="o">=</span> <span class="n">joinPoint</span><span class="o">.</span><span class="na">getArgs</span><span class="o">();</span>
+        <span class="nc">StringBuilder</span> <span class="n">sb</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">StringBuilder</span><span class="o">(</span><span class="s">"where 1=1 "</span><span class="o">);</span>
+        <span class="nc">List</span><span class="o">&lt;</span><span class="nc">String</span><span class="o">&gt;</span> <span class="n">typeList</span> <span class="o">=</span> <span class="nc">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">types</span><span class="o">);</span>
+        <span class="k">for</span> <span class="o">(</span><span class="nc">Object</span> <span class="n">arg</span> <span class="o">:</span><span class="n">args</span><span class="o">){</span>
+            <span class="c1">//获取类型名称</span>
+            <span class="nc">String</span> <span class="n">typeName</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="na">getClass</span><span class="o">().</span><span class="na">getTypeName</span><span class="o">();</span>
+            <span class="k">if</span><span class="o">(</span><span class="n">typeList</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">typeName</span><span class="o">)){</span>
+                <span class="c1">//如果是基础类型</span>
+                <span class="nc">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"暂不检测基本类型"</span><span class="o">);</span>
+            <span class="o">}</span><span class="k">else</span> <span class="o">{</span>
+                <span class="k">if</span><span class="o">(!(</span><span class="n">arg</span> <span class="k">instanceof</span> <span class="nc">TailBean</span><span class="o">)){</span>
+                    <span class="k">return</span><span class="o">;</span>
+                <span class="o">}</span>
+                <span class="c1">//如果不是基础类型，是对象则利用反射获取</span>
+                <span class="nc">Field</span><span class="o">[]</span> <span class="n">fields</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="na">getClass</span><span class="o">().</span><span class="na">getDeclaredFields</span><span class="o">();</span>
+                <span class="k">for</span> <span class="o">(</span><span class="nc">String</span> <span class="n">eq</span> <span class="o">:</span><span class="n">eqFields</span><span class="o">){</span>
+                    <span class="k">for</span> <span class="o">(</span><span class="nc">Field</span> <span class="n">field</span> <span class="o">:</span> <span class="n">fields</span><span class="o">)</span> <span class="o">{</span>
+                        <span class="n">field</span><span class="o">.</span><span class="na">setAccessible</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+                        <span class="k">if</span><span class="o">(</span><span class="n">eq</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">field</span><span class="o">.</span><span class="na">getName</span><span class="o">())){</span>
+                            <span class="n">sb</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="s">" and "</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="nc">StringUtil</span><span class="o">.</span><span class="na">camel2Underscore</span><span class="o">(</span><span class="n">eq</span><span class="o">)).</span><span class="na">append</span><span class="o">(</span><span class="s">" = "</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="s">"'"</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="n">field</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">arg</span><span class="o">)).</span><span class="na">append</span><span class="o">(</span><span class="s">"'"</span><span class="o">);</span>
+                        <span class="o">}</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+                <span class="k">for</span> <span class="o">(</span><span class="nc">String</span> <span class="n">noEq</span> <span class="o">:</span> <span class="n">noEqFields</span><span class="o">){</span>
+                    <span class="k">for</span> <span class="o">(</span><span class="nc">Field</span> <span class="n">field</span> <span class="o">:</span> <span class="n">fields</span><span class="o">)</span> <span class="o">{</span>
+                        <span class="n">field</span><span class="o">.</span><span class="na">setAccessible</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+                        <span class="k">if</span><span class="o">(</span><span class="n">noEq</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">field</span><span class="o">.</span><span class="na">getName</span><span class="o">())){</span>
+                            <span class="n">sb</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="s">" and "</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="nc">StringUtil</span><span class="o">.</span><span class="na">camel2Underscore</span><span class="o">(</span><span class="n">noEq</span><span class="o">)).</span><span class="na">append</span><span class="o">(</span><span class="s">" &lt;&gt; "</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="s">"'"</span><span class="o">).</span><span class="na">append</span><span class="o">(</span><span class="n">field</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">arg</span><span class="o">)).</span><span class="na">append</span><span class="o">(</span><span class="s">"'"</span><span class="o">);</span>
+                        <span class="o">}</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+                <span class="nc">List</span><span class="o">&lt;?&gt;</span> <span class="n">list</span> <span class="o">=</span> <span class="n">sqlManager</span><span class="o">.</span><span class="na">query</span><span class="o">(</span><span class="n">arg</span><span class="o">.</span><span class="na">getClass</span><span class="o">()).</span><span class="na">appendSql</span><span class="o">(</span><span class="n">sb</span><span class="o">.</span><span class="na">toString</span><span class="o">()).</span><span class="na">select</span><span class="o">();</span>
+                <span class="k">if</span><span class="o">(</span><span class="nc">CollectionUtils</span><span class="o">.</span><span class="na">isNotEmpty</span><span class="o">(</span><span class="n">list</span><span class="o">)){</span>
+                    <span class="k">throw</span> <span class="k">new</span> <span class="nf">ServiceException</span><span class="o">(</span><span class="nc">BizExceptionEnum</span><span class="o">.</span><span class="na">CAN_NOT_ADD_AGAIN</span><span class="o">);</span>
+                <span class="o">}</span>
+                <span class="nc">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"插入校验检测通过"</span><span class="o">);</span>
+                <span class="k">return</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+
+    <span class="o">}</span>
+</code></pre></div></div>
+
+<p>​			之后完全可以利用注解实现了：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@InsertCheck</span><span class="o">(</span><span class="n">eqFields</span> <span class="o">=</span> <span class="o">{</span><span class="s">"name"</span><span class="o">,</span><span class="s">"code"</span><span class="o">})</span>
+</code></pre></div></div>
+
+<p>​			当然这里只是简单的校验，如果涉及复杂的查询判断，比如 and a= xxx or b=xxx 或者（）这些可以去更深层次的研究。</p>
+
+<h2 id="四源码解析">四、源码解析</h2>
+
+<p>​			首先我们知道AOP是通过动态代理实现的，而动态代理又分为JDK动态代理和CGLIB动态代理.</p>
+
+<p>​			代理模式很简单，接口 + 真实实现类 + 代理类，其中 真实实现类 和 代理类 都要实现接口，实例化的时候要使用代理类。所以，Spring AOP 需要做的是生成这么一个代理类，然后<strong>替换掉</strong>真实实现类来对外提供服务。</p>
+
+<p>​			替换的过程怎么理解呢？在 Spring IOC 容器中非常容易实现，就是在 getBean(…) 的时候返回的实际上是代理类的实例，而这个代理类我们自己没写代码，它是 Spring 采用 JDK Proxy 或 CGLIB 动态生成的。</p>
+
+<p>​			大家都知道mybatis 的mapper就是通过JDK的动态实现的，而对于AOP的规则很相似，对于接口回使用JDK代理，其他的用CGLIB。</p>
+:ET

@@ -1,8 +1,8 @@
 # Basic
-title: Vno Jekyll
-subtitle: A blog-orientation theme for Jekyll
-welcome_message: <a href="https://github.com/onevcat/vno-jekyll" target="_blank">Download the theme</a>
-description: Vno Jekyll is a port of my Ghost theme vno.
+title: 杨永昊
+subtitle: 生命不息，学习不止
+#welcome_message: <a href="https://github.com/onevcat/vno-jekyll" target="_blank">Download the theme</a>
+description: Java Developer.
 creator: <a href="http://onev.cat">@onevcat</a>
 
 url: "http://vno.onevcat.com"
@@ -38,10 +38,10 @@ comment:
 # Social
 social:
     weibo: onevcat
-    github: onevcat
+    github: HappyYyh
     twitter: onevcat
-    gplus: 107108267983477358170
-    mail: onev@onevcat.com
+    #gplus: 107108267983477358170
+    mail: 863044052@qq.com
 
 # Google Analytics
 ga:
