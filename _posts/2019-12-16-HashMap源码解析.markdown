@@ -1,4 +1,7 @@
-# HashMap源码解析
+---
+title: HashMap源码分析
+tags: ["Java","源码"]
+---
 
 **TreeNode**继承了LinkedHashMap.**Entry**<K,V> 而LinkedHashMap.Entry<K,V> 继承了HashMap.Node<K,V>，所以TreeNode是**Node**的子类，所以可以相互转换
 
