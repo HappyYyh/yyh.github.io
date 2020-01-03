@@ -6,6 +6,12 @@ header:
       zh-CN   : *ZH_HANS
     url: /index.html  
   - titles:
+      en      : &EN       Blog
+      zh-Hans : &ZH_HANS  文章
+      zh      : *ZH_HANS
+      zh-CN   : *ZH_HANS
+    url: /blog.html  	
+  - titles:
       en      : &EN       Project
       zh-Hans : &ZH_HANS  项目
       zh      : *ZH_HANS
@@ -61,18 +67,42 @@ header:
       # @end locale config
     url: /about.html
 
-# docs-en:
-#   - title:      Start
-#     children:
-#       - title:  Quick Start
-#         url:    /docs/en/quick-start
-#       - title:  Structure
-#         url:    /docs/en/structure
-#       ...
-#   - title:      Customization
-#     children:
-#       - title:  Configuration
-#         url:    /docs/en/configuration
-#       - title:  Navigation
-#         url:    /docs/en/navigation
-#       ...
+blog:
+  - title:      Java
+    children:
+      - title:  基础
+        url:    blog/java/java-basis
+      - title:  高级
+        url:    blog/java/java-advance
+  - title:      数据结构与算法
+    children:
+      - title:  数组
+        url:    /about.html
+  - title:      Spring
+    children:
+      - title:  SpringMvc
+        url:    /about.html
+      - title:  SpringBoot
+        url:    /about.html
+      - title:  SpringCloud
+        url:    /about.html
+  - title:      数据库
+    children:
+      - title:  Mysql
+        url:    /about.html
+      - title:  PostgreSql
+        url:    /about.html
+  - title:      ORM框架
+    children:
+      - title:  Mybatis
+        url:    /about.html
+      - title:  MybatisPlus
+        url:    /about.html
+      - title:  BeetlSQL
+        url:    /about.html
+  - title:      Linux运维
+    children:
+      - title:  Shell
+        url:    /about.html
+      - title:  软件安装
+        url:    /about.html		  
