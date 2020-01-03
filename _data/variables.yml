@@ -1,10 +1,10 @@
 default:
   text_skin: default
   highlight_theme: default
-  lang: en
+  lang: zh
   paths:
     root: /
-    home: /
+    home: /index.html
     archive:  /archive.html
     rss:  /feed.xml
   mathjax: false
@@ -34,7 +34,7 @@ default:
     show_subscribe: false
     full_width: false
     sharing: false
-    comment: true
+    comment: false
     license: false
     pageview: false
     search: default

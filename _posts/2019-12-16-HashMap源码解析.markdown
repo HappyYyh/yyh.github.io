@@ -14,7 +14,7 @@ HashMap<Integer,String> map = new HashMap<>();
 ~~~
 
 ~~~java
-	/**
+   /**
      * Constructs an empty <tt>HashMap</tt> with the default initial capacity
      * (16) and the default load factor (0.75).
      */
@@ -54,7 +54,7 @@ static final int hash(Object key) {
 然后看putVal源码
 
 ~~~java
-/**
+   /**
      * Implements Map.put and related methods.
      *
      * @param hash hash for key      key的hash值
@@ -167,7 +167,7 @@ public V get(Object key) {
 getNode
 
 ~~~java
-/**
+   /**
      * Implements Map.get and related methods.
      *
      * @param hash hash for key
@@ -243,7 +243,7 @@ public V remove(Object key) {
 removeNode：
 
 ~~~java
-/**
+   /**
      * Implements Map.remove and related methods.
      *
      * @param hash hash for key
@@ -453,7 +453,7 @@ final Node<K,V>[] resize() {
 ### treeifyBin：链表转红黑树
 
 ~~~java
-/**
+   /**
      * Replaces all linked nodes in bin at index for given hash unless
      * table is too small, in which case resizes instead.
      */
