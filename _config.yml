@@ -76,7 +76,7 @@ paths:
 excerpt_separator: <!--more-->
 
 ## license
-license: #CC-BY-NC-4.0 # "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-4.0", "CC-BY-ND-4.0"
+license: CC-BY-NC-4.0 # "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-4.0", "CC-BY-ND-4.0"
 
 ## TOC
 toc:
@@ -213,11 +213,17 @@ defaults:
       license: true
       aside:
         toc: true
-      # sidebar:
-      #  nav: true
       show_edit_on_github: false
       show_subscribe: false
-      pageview: true		
+      pageview: true
+      license: false
+  - scope:
+      path: "blog"
+    values:
+      layout: article
+      nav_key: blog_key
+      sidebar:
+        nav: blog  
 
 
 ## => Plugins

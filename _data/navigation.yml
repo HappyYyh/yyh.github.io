@@ -10,7 +10,8 @@ header:
       zh-Hans : &ZH_HANS  文章
       zh      : *ZH_HANS
       zh-CN   : *ZH_HANS
-    url: /blog.html  	
+    url: /blog/java/java-basis 
+    key: blog_key	
   - titles:
       en      : &EN       Project
       zh-Hans : &ZH_HANS  项目
@@ -71,9 +72,9 @@ blog:
   - title:      Java
     children:
       - title:  基础
-        url:    blog/java/java-basis
+        url:    /blog/java/java-basis
       - title:  高级
-        url:    blog/java/java-advance
+        url:    /blog/java/java-advance
   - title:      数据结构与算法
     children:
       - title:  数组
