@@ -119,6 +119,71 @@ tags: ["Java","Spring"]
 
 ![image-20191204102820565](http://image.yangyhao.top/image-20191204102820565.png)
 
+
+
+#### ③方法执行时间记录
+
+  有时候我们需要统计异常方法的执行时间，一般都是通过利用`System.currentTimeMillis()`来计算，但是每个方法单独写耦合性又太差，所以需要利用aop进行时间统计；
+
+方法一：
+
+用成员变量startTime，然后`@before`复制，然后再`@After`中记录日志
+
+方法二：
+
+用`@Around`进行记录
+
+~~~java
+@Slf4j
+@Aspect
+@Component
+public class ExecuteTimeAop {
+
+    /**
+     * @Around(value="@annotation(time)") 简化配置，直接写pointcut
+     * @param point
+     * @param time 作用的注解
+     * @return
+     * @throws Throwable
+     */
+    @Around(value = "@annotation(time)")
+    public Object around(ProceedingJoinPoint point,ExecuteTime time) throws Throwable {
+        //获取注解
+        MethodSignature ms = (MethodSignature) point.getSignature();
+        Method method = ms.getMethod();
+        ExecuteTime executeTime = method.getAnnotation(ExecuteTime.class);
+        String logName = executeTime.value();
+        if(StringUtils.isBlank(logName)){
+            logName = method.getName();
+        }
+        log.info("----------------------" + logName + "开始执行----------------------");
+        long start = System.currentTimeMillis();
+        Object result  = point.proceed();
+        long end = System.currentTimeMillis();
+
+        log.info("----------------------" + logName + "执行结束----------------------");
+        log.info("执行耗时：{} " , (end-start)/1000 + "s");
+
+        return result;
+    }
+}
+~~~
+
+~~~java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface ExecuteTime {
+
+    /**
+     * log name
+     * @return
+     */
+    String value() default "";
+}
+~~~
+
+
+
 ### 2、参数校验
 
 ​		我们进行业务代码编写的时候经常需要对参数进行校验，看是否符合预期，那么就会写下如下的代码：
