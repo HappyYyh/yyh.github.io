@@ -9,7 +9,7 @@ tags: ["Spring"]
 
 SpringMvc的请求入口是`DispatcherServlet`，类图如下所示：
 
-![image-20200116092236123](http://image.yangyhao.top/SpringMvc执行流程-一-1.png)
+![image-20200116092236123](http://image.yangyhao.top/blog/SpringMvc执行流程-一-1.png)
 
 可以看到`DispatcherServlet`是HttpServelt的子类，所以我们依旧可以从doService方法进行源码追踪。
 
@@ -81,7 +81,7 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 
 根据debug可以看到，找到的handler里面已经包含了我们所写的controller的信息了
 
-![image-20200116093934255](http://image.yangyhao.top/SpringMvc执行流程-三-1.png)
+![image-20200116093934255](http://image.yangyhao.top/blog/SpringMvc%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B-%E4%B8%89-1.png)
 
 
 
@@ -291,3 +291,17 @@ try {
 }
 ~~~
 
+## 七、总结
+
+最后，附上一张网上转载的[流程图解](https://frank-lam.github.io/fullstack-tutorial/#/JavaArchitecture/07-JavaWeb?id=_1-spring-mvc%e7%9a%84%e5%b7%a5%e4%bd%9c%e5%8e%9f%e7%90%86)
+
+- ①客户端的所有请求都交给前端控制器DispatcherServlet来处理，它会负责调用系统的其他模块来真正处理用户的请求。 
+- ② DispatcherServlet收到请求后，将根据请求的信息（包括URL、HTTP协议方法、请求头、请求参数、Cookie等）以及HandlerMapping的配置找到处理该请求的Handler（任何一个对象都可以作为请求的Handler）。 
+- ③ 在这个地方Spring会通过HandlerAdapter对该处理进行封装。 
+- ④ HandlerAdapter是一个适配器，它用统一的接口对各种Handler中的方法进行调用。 
+- ⑤ Handler完成对用户请求的处理后，会返回一个ModelAndView对象给DispatcherServlet，ModelAndView顾名思义，包含了数据模型以及相应的视图的信息。 
+- ⑥ ModelAndView的视图是逻辑视图，DispatcherServlet还要借助ViewResolver完成从逻辑视图到真实视图对象的解析工作。 
+- ⑦ 当得到真正的视图对象后，DispatcherServlet会利用视图对象对模型数据进行渲染。 
+- ⑧ 客户端得到响应，可能是一个普通的HTML页面，也可以是XML或JSON字符串，还可以是一张图片或者一个PDF文件。
+
+![](http://image.yangyhao.top/blog/SpringMvc执行流程-七-1.png)
