@@ -1,6 +1,6 @@
 ---
 title: Spring AOP 实战
-tags: ["Java","Spring"]
+tags: ["Spring"]
 ---
 
 ## 一、AOP介绍
