@@ -1,6 +1,6 @@
 ---
 title: GitHub pages搭建
-tags: ["GitHub", "教程"]
+tags: ["教程"]
 ---
 
 
