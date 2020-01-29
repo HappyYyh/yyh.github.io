@@ -205,7 +205,7 @@ exclude:
 
 defaults:
   - scope:
-      path: ""
+      path: ""   #为空代表全部
       type: posts
     values:
       layout: article
@@ -218,12 +218,19 @@ defaults:
       pageview: true
       license: false
   - scope:
-      path: "blog"
+      path: "blog"   #这个指的是根路径下的文件夹
+    values:
+      layout: article #布局
+      nav_key: blog_key  #这个对应navigation.yml中header里面的key
+      sidebar:
+        nav: blog      #侧边栏的名称，即navigation.yml中自定义的模块
+  - scope:
+      path: "interview"
     values:
       layout: article
-      nav_key: blog_key
+      nav_key: interview_key
       sidebar:
-        nav: blog  
+        nav: interview		  
 
 
 ## => Plugins

@@ -1,72 +1,100 @@
 header:
   - titles:
-      en      : &EN       Home
-      zh-Hans : &ZH_HANS  主页
-      zh      : *ZH_HANS
-      zh-CN   : *ZH_HANS
+      en      : Home  
+      zh      : 主页
     url: /index.html  
   - titles:
-      en      : &EN       Blog
-      zh-Hans : &ZH_HANS  文章
-      zh      : *ZH_HANS
-      zh-CN   : *ZH_HANS
+      en      : Blog
+      zh      : 文章
     url: /blog/java/java-basis 
     key: blog_key	
   - titles:
-      en      : &EN       Project
-      zh-Hans : &ZH_HANS  项目
-      zh      : *ZH_HANS
-      zh-CN   : *ZH_HANS
-    url: /project.html  
+      en      : Interview 
+      zh      : 面试
+    url: /interview/java/java-basis
+    key: interview_key	 
   - titles:
-      # @start locale config
-      en      : &EN       Archive
-      en-GB   : *EN
-      en-US   : *EN
-      en-CA   : *EN
-      en-AU   : *EN
-      zh-Hans : &ZH_HANS  归档
-      zh      : *ZH_HANS
-      zh-CN   : *ZH_HANS
-      zh-SG   : *ZH_HANS
-      zh-Hant : &ZH_HANT  歸檔
-      zh-TW   : *ZH_HANT
-      zh-HK   : *ZH_HANT
-      ko      : &KO       아카이브
-      ko-KR   : *KO
-      fr      : &FR       Archives
-      fr-BE   : *FR
-      fr-CA   : *FR
-      fr-CH   : *FR
-      fr-FR   : *FR
-      fr-LU   : *FR
-      # @end locale config
+      en      : Archive 
+      zh      : 归档
     url: /archive.html
-
   - titles:
-      # @start locale config
-      en      : &EN       About
-      en-GB   : *EN
-      en-US   : *EN
-      en-CA   : *EN
-      en-AU   : *EN
-      zh-Hans : &ZH_HANS  关于
-      zh      : *ZH_HANS
-      zh-CN   : *ZH_HANS
-      zh-SG   : *ZH_HANS
-      zh-Hant : &ZH_HANT  關於
-      zh-TW   : *ZH_HANT
-      zh-HK   : *ZH_HANT
-      ko      : &KO       소개
-      ko-KR   : *KO
-      fr      : &KO       À propos
-      fr-BE   : *FR
-      fr-CA   : *FR
-      fr-CH   : *FR
-      fr-FR   : *FR
-      fr-LU   : *FR
-      # @end locale config
+      en      : About 
+      zh      : 关于
     url: /about.html
+
+interview:
+  - title:      Java
+    children:
+      - title:  Java基础
+        url:    /interview/java/java-basis  #这里对应的是文章里面的permalink
+      - title:  Java集合框架
+        url:    /interview/java/java-collections
+      - title:  Java多线程
+        url:    /interview/java/java-thread
+      - title:  IO流
+        url:    /interview/java/io-stream
+      - title:  设计模式
+        url:    /interview/java/design-pattern
+      - title:  JVM
+        url:    /interview/java/jvm								
+  - title:      数据库
+    children:
+      - title:  数据库基础
+        url:    /about.html
+      - title:  数据库提升
+        url:    /about.html
+      - title:  调优与设计
+        url:    /about.html
+  - title:      数据结构与算法
+    children:
+      - title:  数据结构
+        url:    /about.html
+      - title:  算法
+        url:    /about.html
+  - title:      框架和工具
+    children:
+      - title:  Excel
+        url:    /about.html
+      - title:  web
+        url:    /about.html
+      - title:  Spring
+        url:    /about.html
+      - title:  Mybatis
+        url:    /about.html
+  - title:      微服务和分布式
+    children:
+      - title:  Dubbo
+        url:    /about.html
+      - title:  Zookeeper
+        url:    /about.html
+      - title:  Redis
+        url:    /about.html
+      - title:  ES
+        url:    /about.html	
+      - title:  MQ
+        url:    /about.html
+  - title:      网络与安全
+    children:
+      - title:  URL
+        url:    /about.html
+      - title:  TCP/UDP
+        url:    /about.html
+      - title:  HTTP
+        url:    /about.html
+      - title:  HTTPS
+        url:    /about.html	
+      - title:  DNS
+        url:    /about.html
+  - title:      操作系统
+    children:
+      - title:  Linux
+        url:    /about.html
+  - title:      架构设计
+    children:
+      - title:  概念
+        url:    /about.html
+      - title:  实际
+        url:    /about.html
 
 blog:
   - title:      Java
@@ -106,4 +134,4 @@ blog:
       - title:  Shell
         url:    /about.html
       - title:  软件安装
-        url:    /about.html		  
+        url:    /about.html		
