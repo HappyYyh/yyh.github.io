@@ -216,7 +216,6 @@ defaults:
       show_edit_on_github: false
       show_subscribe: false
       pageview: true
-      license: false
   - scope:
       path: "blog"   #这个指的是根路径下的文件夹
     values:

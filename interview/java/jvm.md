@@ -1,7 +1,7 @@
 ---
-title: Java基础
+title: JVM
 permalink: /interview/java/jvm
-key: java-basis
+key: jvm
 ---
 
 1.7和1.8的JVM有哪些不同  
