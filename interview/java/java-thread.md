@@ -46,6 +46,150 @@ Runnable和callable区别
 双线程交替打印奇偶  
 
 
+
+**做题：手写一个对象池**   
+
+**1.** **对象池**
+
+当调用对象时，不使用常规的new 构造子的方式，而是通过一个对象池操作。即如果池中存在该对象，则取出；如果不存在，则新建一个对象并存储在池中。当使用完该对象后，则将该对象的归还给对象池。
+
+这里会存在几个问题，必须注意。
+
+Tips 1，考虑多线程状态下的存取对象；
+
+Tips 2，考虑将对象池目录表设计为Singleton模式，这样使得内存中仅存在唯一的一份缓存对象的表。
+
+**2.对象单元设计**
+
+每个对象单元指定一种类型的对象，由Class<T> type维护。对象单元有两个List，List<T> items用于存放该类型的同类对象，List<Boolean> checkedOut用于指定当前是否可用。
+
+设置信号量**int** semaphore，当semaphore < items.size()说明目前List中还有“空闲”的对象。每次取出对象后需semaphore++，归还对象后需semaphore--。
+
+对象单元ObjectUnit.java
+
+~~~java
+import java.util.ArrayList;
+import java.util.List;
+ 
+
+public class ObjectUnit<T> {
+    private Class<T> type;
+    private List<T> items = new ArrayList<T>();
+    private List<Boolean> checkedOut = new ArrayList<Boolean>();
+    private int semaphore;
+ 
+
+    public ObjectUnit(Class<T> type) {
+       this.type = type;
+    }
+ 
+
+    public synchronized T addItem() {
+       T obj;
+       try {
+           obj = type.newInstance();
+       } catch (Exception e) {
+           throw new RuntimeException(e);
+       }
+       items.add(obj);
+       checkedOut.add(false);
+       return obj;
+    }
+ 
+
+    public synchronized T checkOut() {
+       if (semaphore < items.size()) {
+           semaphore++;
+           return getItem();
+       } else
+           return addItem();
+    }
+ 
+
+    public synchronized void checkIn(T x) {
+       if (releaseItem(x))
+           semaphore--;
+    }
+ 
+
+    private synchronized T getItem() {
+       for (int index = 0; index < checkedOut.size(); index++)
+           if (!checkedOut.get(index)) {
+              checkedOut.set(index, true);
+              return items.get(index);
+           }
+       return null;
+    }
+ 
+
+    private synchronized boolean releaseItem(T item) {
+       int index = items.indexOf(item);
+       if (index == -1)
+           return false; // Not in the list
+       if (checkedOut.get(index)) {
+           checkedOut.set(index, false);
+           return true;
+       }
+       return false;
+    }
+}
+~~~
+
+**3.对象池目录表设计**
+
+使用Map<Class<?>, ObjectUnit<?>>来保存当前对象池中类型目录，并把它设计为线程安全的ConcurrentHashMap。
+
+这里的getObj方法和renObj方法不用加锁，因为它调用的对象单元类是线程安全的，并且Map是线程安全的。
+
+此外，这里在处理泛型的时候，会有warning产生，因为之前定义Map中使用<?>，而后面的两个泛型方法指定<T>。还没有想到更好的解决办法。
+
+Provider.java
+
+~~~java
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+ 
+
+public class Provider {
+    private Map<Class<?>, ObjectUnit<?>> providers = new ConcurrentHashMap<Class<?>, ObjectUnit<?>>();
+    private static Provider instance = new Provider();
+ 
+
+    private Provider() {
+    }
+ 
+
+    public static Provider getInstance() {
+       return instance;
+    }
+ 
+
+    @SuppressWarnings("unchecked")
+    public <T> T getObj(Class<T> key) {
+       ObjectUnit value = providers.get(key);
+        if (value != null) {
+           return (T) value.checkOut();
+       } else {
+           value = new ObjectUnit<T>(key);
+           providers.put(key, value);
+           return (T) value.addItem();
+       }
+    }
+ 
+
+    @SuppressWarnings("unchecked")
+    public <T> void renObj(T x) {
+       if (providers.containsKey(x.getClass())) {
+           ObjectUnit value = providers.get(x.getClass());
+           value.checkIn(x);
+       }
+    }
+}
+~~~
+
+
+
+
 ## **锁**
 
 如何理解锁的概念，列举出几个锁来说明它   
