@@ -2,6 +2,8 @@
 title: Java基础
 permalink: /interview/java/java-basis
 key: java-basis
+aside:
+  toc: true
 ---
 
 ## **面向对象特性**
@@ -394,31 +396,339 @@ Error和Exception都是从Throwable类继承过来
 2. 异常捕获（try...catch...fianlly）
 
 
-  
+
 
 
 ## **注解的使用**
 
-注解处理器  
+### 【注解处理器】
 
-怎么实现自定注解  
+[原文](https://segmentfault.com/a/1190000019757327?utm_source=tag-newest)
 
+lombok就是一个注解处理器
+
+**概念**
+
+注解处理器其实全称叫Pluggable Annotation Processing API,插入式注解处理器,它是对JSR269提案的实现,具体可以看链接里面的内容,[JSR269链接](https://jcp.org/aboutJava/communityprocess/final/jsr269/index.html).
+
+工作过程：
+
+1. parse and enter:解析和输入,java编译器这个阶段会把源代码解析生成AST(抽象语法分析树)
+2. annotation processing:注解处理器阶段,此时将调用注解处理器,这时候可以校验代码,生成新文件等等(处理完可以循环到第一步)
+3. analyse and generate:分析和生成,此时前两步完成后,生成字节码(这个阶段进行了解糖,比如类型擦除)
+
+**实践**
+
+在一个类上加上@InterfaceAnnotation,编译的时候去生成一个"I"+类名的接口类。
+
+两个步骤:
+1.自定义一个注解
+
+~~~java
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.SOURCE)
+public @interface InterfaceAnnotation {
+}
+~~~
+
+2.继承AbstractProcessor并且实现process方法
+
+~~~java
+@SupportedAnnotationTypes(value = {"com.example.processor.InterfaceAnnotation"})
+@SupportedSourceVersion(value = SourceVersion.RELEASE_8)
+public class InterfaceProcessor extends AbstractProcessor {
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        Messager messager = processingEnv.getMessager();
+        messager.printMessage(Diagnostic.Kind.NOTE, "进入到InterfaceProcessor中了~~~");
+        // 将带有InterfaceProcessor的类给找出来
+        Set<? extends Element> clazz = roundEnv.getElementsAnnotatedWith(InterfaceAnnotation.class);
+        clazz.forEach(item -> {
+            // 生成一个 I + 类名的接口类
+            String className = item.getSimpleName().toString();
+            className = "I" + className.substring(0, 1) + className.substring(1);
+            TypeSpec typeSpec = TypeSpec.interfaceBuilder(className).addModifiers(Modifier.PUBLIC).build();
+
+            try {
+                // 生成java文件
+                JavaFile.builder("com.example.processor", typeSpec).build().writeTo(new File("./src/main/java/"));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        return true;
+    }
+}
+~~~
+
+1.@SupportedAnnotationTypes:表示这个processor类要对什么注解生效  
+2.@SupportedSourceVersion:表示支持的java版本  
+3.annotations:被要求的注解,就是@SupportedAnnotationTypes对应的注解  
+4.roundEnv:存放着当前和上一轮processing的环境信息  
+5.TypeSpec这个可能有点没看懂是干嘛的,它是javaPoet中的一个类,javaPoet是java用于生成java文件的一款第三方插件很好用,所以这里使用了这个类来生成java文件,  
+实际上这里用java自带的PrintWriter等输入输出流也可以生成java文件,生成文件有很多方式  
+6.Messager是用来打印输出信息的,System.out.println其实也可以;  
+7.process如果返回是true后续的注解处理器就不会再处理这个注解,如果是false,在下一轮processing中,其他注解处理器也会来处理改注解.   
+
+写好之后,这里需要指定processor,META-INF/services/javax.annotation.processing.Processor 写好com.example.processor.InterfaceProcessor.如果你不知道这是啥,可以看下我另一篇博客(实力推广XD)[什么是SPI](https://juejin.im/post/5d0629bfe51d45772a49ad41)
+我们在把注解处理器给编译好,maven里插件的设置:
+
+```maven
+<plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.7.0</version>
+        <configuration>
+              <source>1.8</source>
+              <target>1.8</target>
+              <!-- 不加这一句编译会报找不到processor的异常-->
+              <compilerArgument>-proc:none</compilerArgument>
+        </configuration>
+</plugin>
+```
+
+此时的目录结构是这样:
+
+```
+.
+├── HELP.md
+├── pom.xml
+├── processor.iml
+└── src
+    └── main
+        ├── java
+        │   └── com
+        │       └── example
+        │           └── processor
+        │               ├── InterfaceAnnotation.java
+        │               └── InterfaceProcessor.java
+        └── resources
+            └── META-INF
+                └── services
+                    └── javax.annotation.processing.Processor
+```
+
+然后mvn clean install.
+
+**第三步:使用注解**
+
+在使用之前呢,注解处理器要是编译好的.引入注解处理器的jar包.
+测试类加上@InterfaceAnnotation
+
+```java
+@InterfaceAnnotation
+public class TestProcessor {
+}
+```
+
+maven指定编译时使用的注解处理器.
+
+```
+<plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.7.0</version>
+        <configuration>
+              <source>1.8</source>
+              <target>1.8</target>
+              <encoding>UTF-8</encoding>
+              <annotationProcessors>
+                  <annotationProcessor>
+                        com.example.processor.InterfaceProcessor
+                  </annotationProcessor>
+              </annotationProcessors>
+        </configuration>
+</plugin>
+```
+
+此时目录结构是
+
+```
+.
+├── HELP.md
+├── pom.xml
+├── src
+│   └── main
+│       ├── java
+│       │   └── com
+│       │       └── example
+│       │           └── test
+│       │               └── TestProcessor.java
+│       └── resources
+└── test.iml
+```
+
+然后mvn compile,生成了java文件,此时目录结构是:
+
+```
+.
+├── HELP.md
+├── pom.xml
+├── src
+│   └── main
+│       ├── java
+│       │   └── com
+│       │       └── example
+│       │           ├── processor
+│       │           │   └── ITestProcessor.java  // 这里就是生成的java文件
+│       │           └── test
+│       │               └── TestProcessor.java
+│       └── resources
+├── target
+│   ├── classes
+│   │   └── com
+│   │       └── example
+│   │           └── test
+│   │               └── TestProcessor.class
+│   ├── generated-sources
+│   │   └── annotations
+│   └── maven-status
+│       └── maven-compiler-plugin
+│           └── compile
+│               └── default-compile
+│                   ├── createdFiles.lst
+│                   └── inputFiles.lst
+└── test.iml
+```
+
+看到了生成的java文件就大功告成~
+
+**总结:**
+
+1.java注解处理器在很多地方都可以使用,实际应用比如lombok,安卓生成fragment等等,只使用一个注解可以省去很多代码,提高效率;  
+2.本文只是列举了一个很简单的例子,很多注解处理器里面的api都没有使用到,读者有兴趣的可以自行研究,而且有涉及到抽象语法树的api;  
+3.注解处理器可以用于生成新的类来完成某些功能,但是不能直接修改当前的类.  
+
+
+
+### 【怎么实现自定义注解】  
+
+注解是形如接口，形式如下：
+
+~~~java
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD})
+public @interface Annotations {
+    
+}
+~~~
+
+上面的含义：
+
+1、@Target（用于描述修饰对象的范围）范围取值于`ElementType`这个枚举类
+
+- ANNOTATION_TYPE（注释类型声明）
+
+- CONSTRUCTOR(构造方法声明)
+
+- FIELD (字段声明)
+
+- LOCAL_VARIABLE(局部变量声明)
+
+- METHOD (方法声明)
+
+- PACKAGE(包声明)
+
+- PARAMETER(参数声明)
+
+- TYPE(类、接口（包括注释类型）或枚举声明)
+
+2、@Retention（注释类型的注释要保留多久）范围取值于`RetentionPolicy`这个枚举类：
+
+- CLASS 编译器将把注释记录在类文件中，但在运行时 VM 不需要保留注释
+- RUNTIME  编译器将把注释记录在类文件中，在运行时 VM 将保留注释，因此可以反射性地读取
+- SOURCE 编译器要丢弃的注释
+
+3、@Document（进行文档转化）
+
+
+4、@Inhrited(被标注的类型是被继承的)
 
 
 
 ## **反射**
 
-说一下反射，及你在项目中的应用   
-了解浅拷贝和深拷贝的区别吗  
-引用（四个强度之类的）  
-string example=“一个网址”，求一个example的实例  
-反射讲一下，写一个反射的例子   
-反射机制的底层实现是什么  
+### 【反射的概念】
+
+### 【写一个反射的例子 】
+
+### 【反射在项目中的应用】   
+
+### 【反射机制的底层实现是什么】
+
+### 【浅拷贝和深拷贝的区别】
+
+### 【引用强度】  
+
+### 【string example=“一个网址”，求一个example的实例】
+
+###   
 
 
 ## **其他**
 
-==和equals区别？  
-重写hashcode()是否需要重写equals()，不重写会有什么后果 ？  
-不加任何修饰符的java最像哪个访问修饰符   
-序列化和实现方式，作用？  
+### 【==和equals区别】
+
+==比较的是两个对象的物理地址
+
+而equals默认使用的object类的比较，即地址的比较，而string重写了equals的方法，比较的是 内容
+
+
+
+### 【重写equals是否需要重写hashCode，不重写会有什么后果】
+
+需要重写。
+
+我们知道hash表是利用对象的hash值进行定位的，而hash值就是调用的hashcode方法，如果不重写，那么在运用hash表的时候会造成多个对象相同或者相同对象不同
+
+### 【不加任何修饰符的java最像哪个访问修饰符】
+
+default
+
+### 【序列化和实现方式，作用】  
+
+Java序列化是指把Java对象转换为字节序列的过程，用于存储在硬盘上或者进行网络传输
+
+**序列化实现方式：**
+
+1、首先序列化的类必须实现以下两个接口：
+
+①实现Serializable接口，这个接口是一个空接口，只是用于标注该类序列化
+
+如果某些字段不需要序列化，用`transient`关键字表示或者静态变量也不会被序列化
+
+②实现Externalizable接口，这个接口实现了Serializable，并且提供了两个方法
+
+~~~java
+ /**
+  * 序列化操作的扩展类
+  */
+void writeExternal(ObjectOutput out) throws IOException;
+ /**
+  * 反序列化操作的扩展类
+  */
+void readExternal(ObjectInput in) throws IOException, ClassNotFoundException;
+~~~
+
+
+
+2、序列化形如：
+
+~~~java
+//创建一个对象输出流，它可以包装一个其它类型的目标输出流，如文件输出流：
+ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("D:\\object.out"));
+//通过对象输出流的writeObject()方法写对象：
+oos.writeObject(new User("xuliugen", "123456", "male"));
+~~~
+
+3、反序列化
+
+~~~java
+//创建一个对象输入流，它可以包装一个其它类型输入流，如文件输入流：
+ObjectInputStream ois= new ObjectInputStream(new FileInputStream("object.out"));
+//通过对象输出流的readObject()方法读取对象：
+User user = (User) ois.readObject();
+~~~
+

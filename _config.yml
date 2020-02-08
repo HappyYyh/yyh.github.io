@@ -229,7 +229,9 @@ defaults:
       layout: article
       nav_key: interview_key
       sidebar:
-        nav: interview		  
+        nav: interview
+      aside:
+        toc: true				  
 
 
 ## => Plugins
