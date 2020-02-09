@@ -652,19 +652,141 @@ public @interface Annotations {
 
 ### 【反射的概念】
 
+~~~
+Java的反射（reflection）机制是指在程序的运行状态中，可以构造任意一个类的对象，可以了解任意一个对象所属的类，可以了解任意一个类的成员变量和方法，可以调用任意一个对象的属性和方法。这种动态获取程序信息以及动态调用对象的功能称为Java语言的反射机制。反射被视为动态语言的关键
+                                                                               --百度百科
+~~~
+
+反射获取类实例：
+
+~~~java
+Class<?> cls=Stu.getClass();
+		 
+Class<?> cls=Student.class;
+		 
+Class<?> cls=Class.forName("com.bit.javse.HomeWork.Student");
+~~~
+
+
+
 ### 【写一个反射的例子 】
+
+关于method：
+
+~~~java
+public class ReflectCase {
+
+    public static void main(String[] args) throws Exception {
+        Proxy target = new Proxy();
+        Method method = Proxy.class.getDeclaredMethod("run");
+        method.invoke(target);
+    }
+
+    static class Proxy {
+        public void run() {
+            System.out.println("run");
+        }
+    }
+}
+~~~
+
+关于field
+
+~~~java
+public static <T> T map2Bean(Map<String, Object> map, Class<T> clazz) {
+        try {
+            //获取一个class实例
+            T result = clazz.newInstance();
+            //获取所有字段
+            Field[] fields = result.getClass().getDeclaredFields();
+            for (Field field : fields) {
+                field.setAccessible(true);
+                if (excludeField.contains(field.getName())) {
+                    continue;
+                }
+                field.set(result, map.getOrDefault(field.getName(), null));
+            }
+            return result;
+        } catch (InstantiationException | IllegalAccessException e) {
+            logger.error("exception",e);
+        }
+        return null;
+    }
+~~~
+
+
 
 ### 【反射在项目中的应用】   
 
+1、写工具类的时候会需要用到反射获取类实例
+
+2、写aspect切面的时候会用到反射
+
+
+
 ### 【反射机制的底层实现是什么】
+
+这个需要翻源码，后续会出源码
+
+
 
 ### 【浅拷贝和深拷贝的区别】
 
+深复制和浅复制最根本的区别在于是否是真正获取了一个对象的复制**实体**，而不是引用。   
+
+**浅复制** —-只是拷贝了基本类型的数据，而引用类型数据，复制后也是会发生引用，我们把这种拷贝叫做“（浅复制）浅拷贝”，换句话说，浅复制仅仅是指向被复制的内存地址，如果原地址中对象被改变了，那么浅复制出来的对象也会相应改变。  
+**深复制** —-在计算机中开辟了一块新的内存地址用于存放复制的对象。
+
+
+
+
+
 ### 【引用强度】  
+
+```dart
+>强引用 
+        在程序代码之中普遍存在，类似“Obejct obj=new Object()”这类的引用，
+        只要强引用存在，垃圾收集器永远不会回收掉被引用的对象。 内存不足，系统抛出异常OutOfMemoryError
+
+>软引用
+        用来 描述一些还有用，但并非必需的对象。对于软引用关联的对象，
+        在系统将要发生内存溢出异常之前，将会把这些对象列进回收范围之中并进行第二次回收。
+        如果这次回收还没有足够的内存，才会抛出内存溢出异常。
+
+>弱引用
+        也是用来描述非必需对象的，但是它的强度比软引用更弱一些，
+        被弱引用关联的对象只能生存到下一次垃圾收集发生之前。
+        当垃圾收集器工作时，无论当前内存是否足够，都会回收掉只被弱引用关联的对象。
+
+>虚引用
+        它是最弱的一种引用关系。一个对象是否有虚引用的存在，完全不会对其生存时间构成影响，也无法通过虚引用来取得一个对象实例。
+        为一个对象设置虚引用关联的唯一目的就是希望能在这个对象被收集器回收时收到一个系统通知。
+```
+
+
 
 ### 【string example=“一个网址”，求一个example的实例】
 
-###   
+~~~java
+ //1.调用运行时类本身的.class属性
+Class clazz1 = String.class;
+
+ //2.通过运行时类的对象获取
+Class clazz2 = example.getClass();
+
+//3、forName
+Class clazz3 = Class.forName(example);
+
+//4、类加载器
+ClassLoader classLoader = this.getClass().getClassLoader();
+Class clazz4 = classLoader.loadClass(example);
+~~~
+
+
+
+
+
+
 
 
 ## **其他**
