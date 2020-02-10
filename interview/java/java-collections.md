@@ -6,11 +6,158 @@ key: java-collections
 
 ## **List**
 
-如何实现一个线程安全的List  
-ArrayList和LinkedList区别     
-两个list求差集  
-ArrayList中如何删除某个元素的所有相同元素  
-讲一下迭代器的实现原理 
+### 【迭代器的实现原理】
+
+**迭代器是一种设计模式，它是一个对象，它可以遍历并选择序列中的对象，而开发人员不需要了解该序列的底层结构。迭代器通常被称为“轻量级”对象，因为创建它的代价小。**
+
+其接口主要有三个：
+
+- hasNext()
+- next()
+- remove()
+
+~~~java
+ArrayList list = new ArrayList();
+list.add("a");
+list.add("b");
+list.add("c");
+Iterator it = list.iterator();
+while(it.hasNext()){
+    String str = (String) it.next();
+    System.out.println(str);
+}
+~~~
+
+ 每个集合框架内部都维持了一个Iterator，用于遍历集合，以ArrayList为例
+
+~~~java
+// 获取迭代器
+public Iterator<E> iterator() {
+     return new Itr();
+}
+
+private class Itr implements Iterator<E> {
+    int cursor;       // index of next element to return
+    int lastRet = -1; // index of last element returned; -1 if no such
+    int expectedModCount = modCount;
+
+    Itr() {}
+
+    public boolean hasNext() {
+        // 游标是否到头
+        return cursor != size;
+    }
+
+    @SuppressWarnings("unchecked")
+    public E next() {
+        // 检测是否改动
+        checkForComodification();
+        int i = cursor;
+        if (i >= size)
+            throw new NoSuchElementException();
+        Object[] elementData = ArrayList.this.elementData;
+        if (i >= elementData.length)
+            throw new ConcurrentModificationException();
+        cursor = i + 1;
+        // 获取当前游标的下一个元素
+        return (E) elementData[lastRet = i];
+    }
+
+    public void remove() {
+        if (lastRet < 0)
+            throw new IllegalStateException();
+        checkForComodification();
+
+        try {
+            ArrayList.this.remove(lastRet);
+            cursor = lastRet;
+            lastRet = -1;
+            expectedModCount = modCount;
+        } catch (IndexOutOfBoundsException ex) {
+            throw new ConcurrentModificationException();
+     }
+}
+~~~
+
+需要注意的一点是`next()`方法和`remove()`方法都有一个检测`checkForComodification()`
+
+~~~java
+final void checkForComodification() {
+    if (modCount != expectedModCount)
+        throw new ConcurrentModificationException();
+}
+~~~
+
+这个modCount在增（add）删（remove）元素的的时候会修改，所以在迭代器遍历的时候进行增删操作会抛出
+
+`ConcurrentModificationException`异常
+
+
+
+### 【ArrayList和LinkedList区别】   
+
+ArrayList基于动态数组，随机访问效率高，适合查找，删除效率低，因为需要移动数组
+
+LinkedList基于双向链表，适合删除，但访问效率低
+
+ 
+
+### 【如何实现一个线程安全的List】
+
+ArrayList不是线程安全的，比如我们不能一个线程向 ArrayList中添加元素，一个线程从其中 删除元素，这时会抛`ConcurrentModificationException`异常。
+
+
+
+1、使用Vector，其内部每个方法都加上了`synchronization`保证线程安全
+
+2、`Collections.synchronizedList(List list)`
+
+~~~java
+public static <T> List<T> synchronizedList(List<T> list) {
+    return (list instanceof RandomAccess ?
+            new SynchronizedRandomAccessList<>(list) :
+            new SynchronizedList<>(list));
+}
+~~~
+
+
+
+### 【ArrayList中如何删除某个元素的所有相同元素 】
+
+1、for循环倒续删除
+
+~~~java
+for (int i = list.size() - 1; i >= 0; i--) {
+    list.remove("xxx");
+}
+~~~
+
+2、迭代器删除
+
+~~~java
+Iterator<String> iterator = list.iterator();
+while (iterator.hasNext()){
+    if("xxx".equals(iterator.next())){
+        iterator.remove();
+    }
+}
+~~~
+
+这个等价于：
+
+~~~java
+list.removeIf("xxx"::equals);
+~~~
+
+
+
+### 【两个list求差集】
+
+1、`listA.removeAll(listB);`
+
+2、利用hashMap空间换时间
+
+
 
 
 ## **HashMap** 
