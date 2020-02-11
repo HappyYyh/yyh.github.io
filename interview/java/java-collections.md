@@ -162,34 +162,229 @@ list.removeIf("xxx"::equals);
 
 ## **HashMap** 
 
-HashMap底层实现  
+### 【HashMap底层实现】  
 
--    扩容机制
--    put过程
--    扩容为什么是2
--    转红黑树节点数目为什么是8
--    头插
--    成环
+- 哈希
 
-HashMap为什么不是线程安全的？  
-HashMap多线程有什么问题？怎么解决？  
-怎么让HashMap变得线程安全？  
-HashMap不用同步/并发容器，实现线程安全  
-哈希取模如何哈希？哈希冲突怎么办？能完全解决哈希冲突吗?  
-hash算法 ?  
-一个对象调用hashcode返回的是什么？  
-HashMap key和value是否可以为空  
-为什么链表长度为8要转为红黑树  
-红黑树需要比较大小才能进行插入，是依据什么进行比较的？  
-其他Hash冲突解决方式？  
+  ~~~java
+  static final int hash(Object key) {
+      int h;
+      return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+  }
+  ~~~
+
+  
+
+  **哈希取模如何哈希？**
+
+  根据hash函数来
+
+  
+
+  **哈希冲突怎么办？**
+
+  网上搜到：
+
+  1、开放定址法
+
+  2、链地址法
+
+  3、再哈希法
+
+  我的理解：
+
+  哈希冲突时hashMap会把相同hash值的元素放到同一个数组中
+
+  用**链表**或者**红黑树**解决(即拉链法)
+
+  
+
+  **能完全解决哈希冲突吗?**
+
+   一般不可能
+
+  
+
+  **其他Hash冲突解决方式？**
+
+  三种方式
+
+  1、开放定址法
+
+  2、链地址法
+
+  3、再哈希法
+
+  
+
+  **一个对象调用hashcode返回的是什么**
+
+  hash值
+
+  
+
+- 扩容机制
+
+- put过程
+
+- 扩容为什么是2
+
+- 转红黑树节点数目为什么是8
+
+- 头插
+
+- 成环
+
+
+这个可以见   [《HashMap源码解析》](/2019/12/16/HashMap源码解析.html)
+
+
+
+### 【HashMap线程安全问题】
+
+**1、为什么不是线程安全的？**
+
+Rehash是HashMap在扩容时候的一个步骤
+
+而多线程环境下Resize会出现环形链表的问题
+
+**2、多线程有什么问题？**
+
+环形链表
+
+**3、怎么让HashMap变得线程安全？**  
+
+1、利用ConcurrentHashMap代替HashMap
+
+2、`Collections.synchronizedMap()`
+
+**4、HashMap不用同步/并发容器，实现线程安全**  
+
+ 
+
+### 【HashMap的key和value是否可以为空】
+
+可以，运行一个key为null，value没有限制  
+
+
+
+### 【红黑树需要比较大小才能进行插入，是依据什么进行比较的】
+
+当链表元素大于8的时候会插入，当红黑树大小小于6会退化成链表
+
+  
 
 
 ## **HashTable**
 
-HashTable的操作get和put的时间复杂度？   
-HashTable为什么效率低？    
-HashTable有没有对整个类加锁？  
-HashTablekey和value是否可以为空  
+### 【HashTable的操作get和put的时间复杂度】
+
+~~~java
+public synchronized V get(Object key) {
+    Entry<?,?> tab[] = table;
+    //获取hash值
+    int hash = key.hashCode();
+    //根据hash值计算在数组中的索引
+    int index = (hash & 0x7FFFFFFF) % tab.length;
+    //遍历Entry链表
+    for (Entry<?,?> e = tab[index] ; e != null ; e = e.next) {
+        //如果找到相同的返回值
+        if ((e.hash == hash) && e.key.equals(key)) {
+            return (V)e.value;
+        }
+    }
+    return null;
+}
+~~~
+
+时间复杂度：O(1) 如果hash特别差，会O(n)
+
+~~~java
+public synchronized V put(K key, V value) {
+    // Make sure the value is not null
+    if (value == null) {
+        throw new NullPointerException();
+    }
+
+    // Makes sure the key is not already in the hashtable.
+    Entry<?,?> tab[] = table;
+    // 计算hash值和链表所在索引
+    int hash = key.hashCode();
+    int index = (hash & 0x7FFFFFFF) % tab.length;
+    @SuppressWarnings("unchecked")
+    Entry<K,V> entry = (Entry<K,V>)tab[index];
+    // 遍历链表
+    for(; entry != null ; entry = entry.next) {
+        //如果hash冲突并且key相同
+        if ((entry.hash == hash) && entry.key.equals(key)) {
+            //覆盖旧值
+            V old = entry.value;
+            entry.value = value;
+            //返回旧值
+            return old;
+        }
+    }
+	// 如果遍历数组和链表中没有对应key的值,则新添加一个
+    addEntry(hash, key, value, index);
+    return null;
+}
+
+private void addEntry(int hash, K key, V value, int index) {
+    modCount++;
+
+    Entry<?,?> tab[] = table;
+    // 如果大于负载容量则重新计算hash
+    if (count >= threshold) {
+        // Rehash the table if the threshold is exceeded
+        rehash();
+
+        tab = table;
+        hash = key.hashCode();
+        index = (hash & 0x7FFFFFFF) % tab.length;
+    }
+
+    // Creates the new entry.
+    @SuppressWarnings("unchecked")
+    Entry<K,V> e = (Entry<K,V>) tab[index];
+    // 根据新的参数在链表的头部添加新的entry
+    tab[index] = new Entry<>(hash, key, value, e);
+    count++;
+}
+~~~
+
+时间复杂度：O(1) 如果hash特别差，会O(n)
+
+
+
+### 【HashTable为什么效率低】   
+
+​	因为其是线程安全的，效率比较低
+
+
+
+### 【HashTable有没有对整个类加锁】 
+
+​	没有，但是其对和hashmap相同的方法都加上了synchronized锁
+
+
+
+### 【HashTable的key和value是否可以为空】 
+
+​	不可以
+
+~~~java
+public synchronized V put(K key, V value) {
+    // Make sure the value is not null
+    if (value == null) {
+        throw new NullPointerException();
+    }
+    ....
+}        
+~~~
+
+
+
+
 
 
 ## **ConcurrentHashMap**
