@@ -389,14 +389,60 @@ public synchronized V put(K key, V value) {
 
 ## **ConcurrentHashMap**
 
-ConcurrentHashMap各版本的差异？  
-ConcurrentHashMap，JDK1.7和1.8的不同实现  
-jdk1.8对ConcurrentHashMap做了哪些优化？  
-ConcurrentHashMap的size()函数1.7和1.8的不同，或者介绍一下如果是你如何设计  
-concurrentHashMap分段锁原理，用java8实现和java7有什么区别   
-concurrentHashmap1.8为什么放弃了分段锁 ?   
-concurrentHashMap默认桶数量，多线程写时冲突概率  
-ConcurrentHashMap怎么实现线程安全的？  
+### 【ConcurrentHashMap各版本（JDK1.7和1.8）的差异】
+
+
+
+在JDK1.7中ConcurrentHashMap采用了**数组+Segment+分段锁**的方式实现。
+
+JDK8中ConcurrentHashMap参考了JDK8 HashMap的实现，采用了**数组+链表+红黑树**的实现方式来设计，**内部大量采用CAS操作**
+
+**1.数据结构**：取消了Segment分段锁的数据结构，取而代之的是数组+链表+红黑树的结构。
+**2.保证线程安全机制**：JDK1.7采用segment的分段锁机制实现线程安全，其中segment继承自ReentrantLock。JDK1.8采用CAS+Synchronized保证线程安全。
+**3.锁的粒度**：原来是对需要进行数据操作的Segment加锁，现调整为对每个数组元素加锁（Node）。
+**4.链表转化为红黑树**:定位结点的hash算法简化会带来弊端,Hash冲突加剧,因此在链表节点数量大于8时，会将链表转化为红黑树进行存储。
+**5.查询时间复杂度**：从原来的遍历链表O(n)，变成遍历红黑树O(logN)
+
+
+
+### 【jdk1.8对ConcurrentHashMap做了哪些优化】  
+
+1、取消了segment字段，直接采用transient volatile HashEntry[] table保存数据，采用table数组元素作为锁，从而实现了对每一行数据进行加锁，进一步减少并发冲突的概率
+
+2、将原先table数组＋单向链表的数据结构，变更为table数组＋单向链表＋红黑树的结构，查询时时间复杂度由O(n)提升到O(logn),提高性能
+
+
+
+### 【ConcurrentHashMap的size()函数1.7和1.8的不同，或者介绍一下如果是你如何设计】
+
+
+
+1.8
+
+~~~java
+public int size() {
+    long n = sumCount();
+    return ((n < 0L) ? 0 :
+            (n > (long)Integer.MAX_VALUE) ? Integer.MAX_VALUE :
+            (int)n);
+}
+~~~
+
+
+
+### 【concurrentHashMap分段锁原理，用java8实现和java7有什么区别 】  
+
+
+
+### 【concurrentHashmap1.8为什么放弃了分段锁】 
+
+
+
+### 【concurrentHashMap默认桶数量，多线程写时冲突概率】  
+
+
+
+### 【ConcurrentHashMap怎么实现线程安全的】  
 
 
 ## **TreeMap**

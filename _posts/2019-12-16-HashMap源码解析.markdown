@@ -3,9 +3,9 @@ title: HashMap源码分析
 tags: ["Java集合框架"]
 ---
 
-**TreeNode**继承了LinkedHashMap.**Entry**<K,V> 而LinkedHashMap.Entry<K,V> 继承了HashMap.Node<K,V>，所以TreeNode是**Node**的子类，所以可以相互转换
 
-## 1、构建
+
+## 1、构造器
 
 首先构建一个hashMap
 
@@ -321,7 +321,7 @@ remove过程：
 
 3、返回找到的节点值
 
-## 9、其他方法
+## 5、其他方法
 
 ### hash：计算key的Hash值
 
@@ -678,7 +678,7 @@ static int tieBreakOrder(Object a, Object b) {
 
 
 
-## 10、避免在多线程使用hashMap
+## 6、避免在多线程使用hashMap
 
 因为线程不安全，比如如下：多线程扩容
 
@@ -702,3 +702,6 @@ private static HashMap<Integer,String> map = new HashMap<Integer,String>(2，0.7
     }  
 ~~~
 
+## 7、注意
+
+**TreeNode**继承了LinkedHashMap.**Entry**<K,V> 而LinkedHashMap.Entry<K,V> 继承了HashMap.Node<K,V>，所以TreeNode是**Node**的子类，所以可以相互转换
