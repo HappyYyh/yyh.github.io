@@ -106,6 +106,37 @@ key: java-thread
 
 
 
+### 【Java程序启动至少启动几个线程】
+
+​	一般想到两个Main线程，GC线程
+
+​	实际调用JMX的API：
+
+~~~java
+public class TestOne {
+	public static void main(String[] args) {
+		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
+		ThreadInfo[] allThreads = mxBean.dumpAllThreads(false, false);
+		for (ThreadInfo threadInfo : allThreads) {
+				System.out.println(threadInfo.getThreadId()+"==="+
+                                   threadInfo.getThreadName());
+		}
+	}
+}
+~~~
+
+~~~java
+5===Attach Listener 
+4===Signal Dispatcher 分发处理发送给jvm信号的线程
+3===Finalizer 调用对象finalize方法的线程，就是垃圾回收的线程
+2===Reference Handler 清除reference的线程
+1===main
+~~~
+
+
+
+
+
 ### 【java线程启动、终止方式】  
 
 ​	启动：线程初始化以后，调用start方法即可启动线程
@@ -721,33 +752,455 @@ public class Provider {
 
 ## **锁**
 
-【关于多线程锁的升级原理】  
+### 【锁的分类和介绍】
 
-如何理解锁的概念，列举出几个锁来说明它   
-对java中锁的理解  
-了解过哪些锁  
-什么是自旋锁？  
-自旋锁和阻塞锁的区别  
-公平锁和非公平锁的区别  
-那么公平锁是怎样的底层实现  
-说说你对乐观锁、悲观锁的理解  
-死锁场景  
-死循环怎么造成的  
-加锁的静态方法和普通方法区别  
-有看过synchronize的源码吗？
-synchronize的实现原理    
-jdk对synchronize的优化  
-synchronized 和 lock 区别   
-这两种锁在Java和MySQL分别是怎么实现的？  
-jdk中哪种数据结构或工具可以实现当多个线程到达某个状态时执行一段代码   
-栅栏和闭锁的区别   
-Java程序启动至少启动几个线程  
-创建线程以及线程运行时代码的方式  
-ReadWriteLock与ReentrantReadWriteLock的理解和区别  
-ReentrantReadWriteLock哪些特性   
-那谈谈Lock接口的API以及其实现类相关的了解  
-ReentrantLock的理解  
-ReentrantLock中的lock和unlock之间的同步如何进行线程间的通信   
+#### **公平锁/非公平锁**
+
+**公平锁**是指多个线程按照申请锁的顺序来获取锁。  
+**非公平锁**是指多个线程获取锁的顺序并不是按照申请锁的顺序，有可能后申请的线程比先申请的线程优先获取锁。有可能，会造成优先级反转或者饥饿现象。  
+
+对于Java `ReentrantLock`而言，通过构造函数指定该锁是否是公平锁，默认是非公平锁。非公平锁的优点在于吞吐量比公平锁大。  
+对于`Synchronized`而言，也是一种非公平锁。由于其并不像`ReentrantLock`是通过AQS的来实现线程调度，所以并没有任何办法使其变成公平锁。
+
+
+
+#### **可重入锁**  
+
+可重入锁又名**递归锁**，是指在同一个线程在外层方法获取锁的时候，在进入内层方法会自动获取锁。说的有点抽象，下面会有一个代码的示例。
+对于Java `ReentrantLock`而言, 他的名字就可以看出是一个可重入锁，其名字是`Re entrant Lock`重新进入锁。
+对于`Synchronized`而言,也是一个可重入锁。可重入锁的一个好处是可一定程度避免死锁。
+
+```
+synchronized void setA() throws Exception{
+    Thread.sleep(1000);
+    setB();
+}
+
+synchronized void setB() throws Exception{
+    Thread.sleep(1000);
+}
+```
+
+上面的代码就是一个可重入锁的一个特点，如果不是可重入锁的话，setB可能不会被当前线程执行，可能造成死锁。
+
+
+
+#### **独享锁/共享锁**
+
+**独享锁**是指该锁一次只能被一个线程所持有。
+**共享锁**是指该锁可被多个线程所持有。
+
+对于Java `ReentrantLock`而言，其是独享锁。但是对于Lock的另一个实现类`ReadWriteLock`，其读锁是共享锁，其写锁是独享锁。  
+读锁的共享锁可保证并发读是非常高效的，读写，写读 ，写写的过程是互斥的。  
+独享锁与共享锁也是通过AQS来实现的，通过实现不同的方法，来实现独享或者共享。  
+对于`Synchronized`而言，当然是独享锁。     
+
+
+
+#### **互斥锁/读写锁**
+
+上面讲的独享锁/共享锁就是一种广义的说法，互斥锁/读写锁就是具体的实现。  
+**互斥锁**在Java中的具体实现就是`ReentrantLock`
+**读写锁**在Java中的具体实现就是`ReadWriteLock`
+
+
+
+#### **乐观锁/悲观锁**
+
+乐观锁与悲观锁不是指具体的什么类型的锁，而是指看待并发同步的角度。
+
+**悲观锁**认为对于同一个数据的并发操作，一定是会发生修改的，哪怕没有修改，也会认为修改。因此对于同一个数据的并发操作，悲观锁采取加锁的形式。悲观的认为，不加锁的并发操作一定会出问题。
+
+**乐观锁**则认为对于同一个数据的并发操作，是不会发生修改的。在更新数据的时候，会采用尝试更新，不断重新的方式更新数据。乐观的认为，不加锁的并发操作是没有事情的。
+
+从上面的描述我们可以看出，悲观锁适合写操作非常多的场景，乐观锁适合读操作非常多的场景，不加锁会带来大量的性能提升。
+
+悲观锁在Java中的使用，就是利用各种锁**Synchronize/Lock**。
+乐观锁在Java中的使用，是无锁编程，常常采用的是**CAS**算法，典型的例子就是原子类，通过CAS自旋实现原子操作的更新。
+
+
+
+#### **分段锁**
+
+分段锁其实是一种锁的设计，并不是具体的一种锁，对于`ConcurrentHashMap`而言，其并发的实现就是通过分段锁的形式来实现高效的并发操作。  
+
+我们以`ConcurrentHashMap`来说一下分段锁的含义以及设计思想，`ConcurrentHashMap`中的分段锁称为`Segment`，它即类似于HashMap（JDK7与JDK8中HashMap的实现）的结构，即内部拥有一个Entry数组，数组中的每个元素又是一个链表；同时又是一个ReentrantLock（Segment继承了ReentrantLock)。
+
+当需要put元素的时候，并不是对整个hashmap进行加锁，而是先通过hashcode来知道他要放在那一个分段中，然后对这个分段进行加锁，所以当多线程put的时候，只要不是放在一个分段中，就实现了真正的并行的插入。
+但是，在统计size的时候，可就是获取hashmap全局信息的时候，就需要获取所有的分段锁才能统计。
+分段锁的设计目的是细化锁的粒度，当操作不需要更新整个数组的时候，就仅仅针对数组中的一项进行加锁操作。
+
+
+
+#### **偏向锁/轻量级锁/重量级锁**
+
+这三种锁是指锁的状态，并且是针对`Synchronized`。在Java 5通过引入锁升级的机制来实现高效`Synchronized`。这三种锁的状态是通过**对象监视器**在对象头中的字段来表明的。
+
+**偏向锁**是指一段同步代码一直被一个线程所访问，那么该线程会自动获取锁。降低获取锁的代价。  
+**轻量级**锁是指当锁是偏向锁的时候，被另一个线程所访问，偏向锁就会升级为轻量级锁，其他线程会通过自旋的形式尝试获取锁，不会阻塞，提高性能。  
+**重量级**锁是指当锁为轻量级锁的时候，另一个线程虽然是自旋，但自旋不会一直持续下去，当自旋一定次数的时候，还没有获取到锁，就会进入阻塞，该锁膨胀为重量级锁。重量级锁会让其他申请的线程进入阻塞，性能降低。
+
+
+
+#### **自旋锁**
+
+在Java中，自旋锁是指尝试获取锁的线程不会立即阻塞，而是采用循环的方式去尝试获取锁，这样的好处是减少线程上下文切换的消耗，缺点是循环会消耗CPU。
+典型的自旋锁实现的例子，可以参考[自旋锁的实现](http://ifeve.com/java_lock_see1/)
+
+~~~java
+public class SpinLock {
+
+  private AtomicReference<Thread> sign =new AtomicReference<>();
+  public void lock(){
+    Thread current = Thread.currentThread();
+    while(!sign .compareAndSet(null, current)){
+    }
+  }
+
+  public void unlock (){
+    Thread current = Thread.currentThread();
+    sign .compareAndSet(current, null);
+  }
+}
+/**
+使用了CAS原子操作，lock函数将owner设置为当前线程，并且预测原来的值为空。unlock函数将owner设置为null，并且预测值为当前线程。
+
+当有第二个线程调用lock操作时由于owner值不为空，导致循环一直被执行，直至第一个线程调用unlock函数将owner设置为null，第二个线程才能进入临界区。
+
+由于自旋锁只是将当前线程不停地执行循环体，不进行线程状态的改变，所以响应速度更快。但当线程数不停增加时，性能下降明显，因为每个线程都需要执行，占用CPU时间。如果线程竞争不激烈，并且保持锁的时间段。适合使用自旋锁。
+
+注：该例子为非公平锁，获得锁的先后顺序，不会按照进入lock的先后顺序进行。
+*/
+~~~
+
+
+
+### 【自旋锁和阻塞锁的区别】  
+
+​	互斥锁的起始原始开销要高于自旋锁，但是基本是一劳永逸，临界区持锁时间的大小并不会对互斥锁的开销造成影响，而自旋锁是死循环检测，加锁全程消耗cpu，起始开销虽然低于互斥锁，但是随着持锁时间，加锁的开销是线性增长。
+
+
+
+### 【乐观/悲观锁在Java和MySQL分别是怎么实现的】
+
+**Mysql**
+
+​	乐观锁实现：
+
+​	利用数据库版本（version）实现，一般是通过为数据库表增加一个数字类型的 “version” 字段，当我们提交更新的时候，判断数据库表对应记录的当前版本信息与第一次取出来的version值进行比对，如果数据库表当前版本号与第一次取出来的version值相等，则予以更新，否则认为是过期数据   
+
+​	悲观锁实现：
+
+​	注：要使用悲观锁，我们必须关闭mysql数据库的自动提交属性，因为MySQL默认使用autocommit模式，也就是说，当你执行一个更新操作后，MySQL会立刻将结果进行提交。
+
+​	一般都是select xxx for update，之后数据就被锁定了，其它的事务必须等本次事务提交之后才能执行
+
+~~~sql
+select status from t_goods where id=1 for update;
+~~~
+
+
+
+**Java**
+
+​	乐观锁实现：CAS和原子类
+
+​	悲观锁实现：Synchronize和Lock
+
+
+
+### 【公平锁是怎样的底层实现】  
+
+构造方法传入是否是公平锁
+
+~~~java
+public ReentrantLock(boolean fair) {
+     sync = fair ? new FairSync() : new NonfairSync();
+}
+~~~
+
+~~~java
+static final class FairSync extends Sync {
+        private static final long serialVersionUID = -3000897897090466540L;
+
+        final void lock() {
+            acquire(1);
+        }
+
+        /**
+         * Fair version of tryAcquire.  Don't grant access unless
+         * recursive call or no waiters or is first.
+         */
+        protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            //拿到当前的同步状态, 如果是无锁状态， 则进行hasQueuedPredecessors方法逻辑
+            if (c == 0) {
+                if (!hasQueuedPredecessors() &&
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+    }
+~~~
+
+
+
+
+
+### 【死锁场景】  
+
+死锁指的是多个进程因为竞争资源而造成的僵局（互相等待），没有外力，那么所有进程都会无法向前推进。
+
+**场景：**
+
+- 系统资源的竞争。只有资源不足时才会出现死锁可能，另外，可剥夺资源的竞争是不会引发死锁的；
+
+- 进程推进顺序不对。多进程在运行时，请求和释放资源的顺序不当。
+
+- 系统资源分配不当。
+
+
+
+### 【死循环怎么造成的】  
+
+**四大必要条件：**
+
+- 互斥：进程对分配到的资源排它性使用。独占资源，是由资源本身的属性决定的。
+- 请求和保持：保持已有资源，同时请求新的资源，在请求过程中以及因为没有得到新资源而阻塞，已有资源仍然保持；
+- 不可剥夺：进程已有的资源在使用完之前不能被剥夺，只能自己释放；
+- 环路等待：必然存在一个进程资源环形请求链。
+
+**死锁预防**：打破之前四个条件
+
+- 打破互斥在实际中应用不大；
+- 打破请求与保持，可以实行资源预先分配策略，即进程在运行前一次性申请所需要的全部资源，如果不能满足，则暂不运行。实际应用中，进程在执行时是动态的，不可预测的，并且资源利用率低，降低了进程并发性。
+- 打破不可剥夺，当请求新资源不能满足，需要释放已有资源，系统性能受到很大降低
+- 打破循环等待：实行资源有序分配策略。可以将资源事先分类编号，按号分配，使进程在申请、占用资源是不会形成环路。所有进程对资源的请求必须严格按资源序号递增的顺序提出。但是也有问题，合理编号困难，增大系统开销，另外也增加了进程对资源的占有时间。
+
+**死锁避免：**
+
+　　不限制进程有关申请资源的命令，而是对进程所发出的每一个申请资源命令加以动态地检查，并根据检查结果决定是否进行资源分配。就是说，在资源分配过程中若预测有发生死锁的可能性，则加以避免。这种方法的关键是确定资源分配的安全性。
+
+　　银行家算法（1968年）：允许进程动态地申请资源，系统在每次实施资源分配之前，先计算资源分配的安全性，若此次资源分配安全（即资源分配后，系统能按某种顺序来为每个进程分配其所需的资源，直至最大需求，使每个进程都可以顺利地完成），便将资源分配给进程，否则不分配资源，让进程等待。
+
+**死锁检测与修复：**
+
+　　预防和避免的手段达到排除死锁的目的是很困难的。一种简便的方法是系统为进程分配资源时，不采取任何限制性措施，但是提供了检测和解脱死锁的手段：能发现死锁并从死锁状态中恢复出来。因此，在实际的操作系统中往往采用死锁的检测与恢复方法来排除死锁。
+
+
+
+### 【加锁的静态方法和普通方法区别】
+
+结论：
+
+`static synchronized`是**类锁**，`synchronized`是**对象锁**。
+
+
+
+**对象锁**（又称实例锁，`synchronized`）：该锁针对的是该实例对象（当前对象）。
+ `synchronized`是对类的**当前实例（当前对象）**进行加锁，防止其他线程同时访问该类的**该实例的所有synchronized块**，注意这里是“类的当前实例”， 类的两个不同实例就没有这种约束了。
+**每个对象都有一个锁，且是唯一的**。
+
+
+
+**类锁**（又称全局锁，`static synchronized`）：该锁针对的是类，无论**实例**出多少个**对象**，那么线程依然共享该锁。 `static synchronized`是限制多线程中该类的所有实例同时访问该类**所对应的代码块**。（`实例.fun`实际上相当于`class.fun`）
+
+
+
+### 【栅栏和闭锁的区别】  
+
+1. ​	**闭锁**用来等待事件，就是说闭锁用来等待的事件就是countDown事件,只有该countDown事件执行后所有之前在等待的线程才有可能继续执行;而栅栏没有类似countDown事件控制线程的执行,只有线程的await方法能控制等待的线程执行。
+
+2. ​	**栅栏**用来等待线程，CyclicBarrier强调的是n个线程，大家相互等待，只要有一个没完成，所有线程都得等着。
+
+   闭锁是一次性对象，一旦进入终止状态，就不能重置。而栅栏可以使一定数量的参入方反复的在栅栏位置汇集。
+   
+   
+
+### 【Synchronize的实现原理】    
+
+​	**锁的数据结构：**
+​	同步代码块是使用monitorenter和monitorexit指令实现的，任何java对象都有一个monitor与之关联，当一个monitor被持有后，对象就处于锁定状态。
+
+​	Synchronized是通过对象内部的一个叫做监视器锁（monitor）来实现的。但是监视器锁本质又是依赖于底层的操作系统的Mutex Lock来实现的。
+
+​	Synchronize锁是通过monitorenter和monitorexit来实现的
+
+​	**每个对象**都有一个monitor监视器，调用monitorenter就是尝试获取这个对象，成功获取到了就将值+1，离开就将值减1。如果是线程重入，在将值+1，说明monitor对象是支持可重入的。
+
+
+
+### 【Jdk对synchronize的优化】  
+
+​	HotSpot中锁的具体实现以及对它的优化：
+
+​	**重量级锁**：
+
+​	最基础的实现方式，JVM会阻塞未获取到锁的线程，在锁被释放的时候唤醒这些线程。阻塞和唤醒操作是依赖操作系统来完成的,所以需要从用户态切换到内核态，开销很大。并且monitor调用的是操作系统底层的互斥量(mutex),本身也有用户态和内核态的切换，所以JVM引入了自旋的概念，减少上面说的线程切换的成本。  
+
+​	**自旋锁**：
+
+​	因为JVM不知道锁被占用的时间长短，所以使用的是自适应自旋。就是**线程空循环的次数时会动态调整的**。
+
+​	**轻量级锁：**
+
+​	JDK1.6之后加入，它的目的并不是为了替换前面的重量级锁，而是在实际**没有锁竞争的情况下， 通过CAS将申请互斥量这步也省掉。**
+
+​	**偏向锁：**
+
+​	无竞争条件下 消除**整个**同步互斥，连CAS都不操作。
+
+
+
+### 【Lock接口的API以及其实现类】  
+
+​	API:
+
+~~~java
+//获取锁。拿不到lock就不罢休，不然线程就一直block
+void lock();
+
+//如果当前线程未被中断，则获取锁。 
+void lockInterruptibly() throws InterruptedException;
+
+//仅在调用时锁未被另一个线程保持的情况下，才获取该锁，拿不到返回false
+boolean tryLock();
+
+//仅在调用时锁未被另一个线程保持的情况下，才获取该锁，拿不到lock，就等一段时间，超时返回false
+boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
+
+//释放锁
+void unlock();
+
+//获取等待通知组件，该组件和当前的锁绑定，当前线程只有获得了锁，才能调用该组件的wait()方法，而调用后，当前线程将释放锁
+Condition newCondition();
+~~~
+
+​	实现类：
+
+~~~java
+//可重入锁
+ReentrantLock.class;
+// 读写锁    
+ReentrantReadWriteLock.class    
+~~~
+
+
+
+### 【ReentrantLock的理解】 
+
+​	ReentrantLock是可重入锁，其内有公平锁和非公平锁两种实现，和synchronized不可响应中断不同，而ReentrantLock可以相应中断，其原理需要结合AQS和CAS
+
+
+
+### 【ReentrantLock中的lock和unlock之间的同步如何进行线程间的通信】 
+
+​	利用Condition
+
+~~~java
+Lock lock = new ReentrantLock();
+Condition c = lock.newCondition()
+~~~
+
+​	condition对象可以利用await/signal（**等待/唤醒**） 等同于Object里面的wait/notify方法进行线程间通信
+
+
+
+### 【ReentrantReadWriteLock的理解】 
+
+​	JUC提供了读写锁ReentrantReadWriteLock，它表示两个锁，一个是读操作相关的锁，称为**共享锁**；一个是写相关的锁，称为**排他锁**
+
+​	读写锁有以下三个重要的特性：
+
+（1）公平选择性：支持非公平（默认）和公平的锁获取方式，吞吐量还是非公平优于公平。
+
+（2）重进入：读锁和写锁都支持线程重进入。
+
+（3）锁降级：遵循获取写锁、获取读锁再释放写锁的次序，写锁能够降级成为读锁。
+
+​	其内部有5个内部类，
+
+~~~java
+abstract static class Sync extends AbstractQueuedSynchronizer
+//非公平
+static final class NonfairSync extends Sync
+//公平    
+static final class FairSync extends Sync
+//读
+public static class ReadLock implements Lock, java.io.Serializable 
+//写    
+public static class WriteLock implements Lock, java.io.Serializable    
+~~~
+
+
+
+### 【ReadWriteLock与ReentrantReadWriteLock区别】  
+
+​	后者是前者的实现类，前者是一个接口，只有两个方法：
+
+~~~java
+	/**
+     * Returns the lock used for reading.
+     *
+     * @return the lock used for reading
+     */
+    Lock readLock();
+
+    /**
+     * Returns the lock used for writing.
+     *
+     * @return the lock used for writing
+     */
+    Lock writeLock();
+~~~
+
+​	后者多了很多实现方法（怀疑题目有点问题，要是ReentrantLock和ReentrantReadWriteLock比较才有意思）
+
+
+
+### 【Synchronized 和 lock 区别】 
+
+1. Synchronized 是关键字，可以用在代码块、方法、类上面，由JVM底层优化支持；Lock是一个接口，只能写在方法中
+2. Synchronized 会自动释放锁，而Lock一般需要在finally块中释放锁
+3. Lock可以让等待锁的线程响应中断处理，如tryLock(long time, TimeUnit unit)，而Synchronized 不行
+4. synchronized是非公平锁，Lock可以设置是否公平锁，默认是非公平锁；
+5. Lock的实现类ReentrantReadWriteLock提供了readLock()和writeLock()用来获取读锁和写锁的两个方法，这样多个线程可以进行同时读操作；
+6. Lock可以绑定条件，实现分组唤醒需要的线程；synchronized要么随机唤醒一个，要么唤醒全部线程。
+
+
+
+### 【多线程锁的升级原理】   
+
+​	锁的级别从低到高：
+
+​	**无锁 -> 偏向锁 -> 轻量级锁 -> 重量级锁**
+
+​	锁分级别**原因**：
+
+​	没有优化以前，sychronized是重量级锁（悲观锁），使用 wait 和 notify、notifyAll 来切换线程状态非常消耗系统资源；线程的挂起和唤醒间隔很短暂，这样很浪费资源，影响性能。所以 JVM 对 sychronized 关键字进行了优化，把锁分为 无锁、偏向锁、轻量级锁、重量级锁 状态。
+
+锁状态对比：
+
+ 
+
+|          |                            偏向锁                            |                           轻量级锁                           |                    重量级锁                    |
+| :------: | :----------------------------------------------------------: | :----------------------------------------------------------: | :--------------------------------------------: |
+| 适用场景 |                    只有一个线程进入同步块                    | 虽然很多线程，但是没有冲突：多条线程进入同步块，但是线程进入时间错开因而并未争抢锁 | 发生了锁争抢的情况：多条线程进入同步块并争用锁 |
+|   本质   |                         取消同步操作                         |                     CAS操作代替互斥同步                      |                    互斥同步                    |
+|   优点   | 不阻塞，执行效率高（只有第一次获取偏向锁时需要CAS操作，后面只是比对ThreadId） |                           不会阻塞                           |                  不会空耗CPU                   |
+|   缺点   |    适用场景太局限。若竞争产生，会有额外的偏向锁撤销的消耗    |                   长时间获取不到锁空耗CPU                    | 阻塞，上下文切换，重量级操作，消耗操作系统资源 |
+
 
 
 
