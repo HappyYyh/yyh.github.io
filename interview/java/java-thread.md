@@ -1206,29 +1206,192 @@ public static class WriteLock implements Lock, java.io.Serializable
 
 ## **Voliate**
 
-volatile底层实现  
-说一说volatile关键字的作用？它为什么能保证可见性？  
-volatile关键字是如何保证可见性的  
-为什么uniqueInstance声明使用volitie修饰  
+### 【说一说volatile关键字的作用】
+
+​	保证变量的可见性，一定程度上禁止指令重排序
+
+
+
+### 【volatile为什么能保证可见性】
+
+​	问题：Java内存模型规定变量存储在**主存**中，对于每个线程都有自己的**工作内存**，线程的工作内存中保存了被改线程使用到的变量的主内存副本拷贝，这就造成多线程环境下读取的时候可能读取到的值不是最新的值；
+
+​	解决：用来volatile关键字修饰变量以后，Java内存模型将在写操作后插入一个**写屏障**指令（即内存屏障），在读操作前插入一个**读屏障**指令，**内存屏障**会把之前的写入值都刷新到缓存，这样会保证：
+
+​	1、一旦完成写操作，任何线程得到的值都是最新的值
+
+​	2、写入前，会保证所有之前发生的事已经发生，并且任何更新过的数据值也是可见的
+
+​	由此volatile保证了可见性（通俗点就是强制刷新主存）
+
+
+
+### 【volatile底层实现】
+
+​	volatile的底层是通过lock前缀指令、内存屏障来实现的。
+
+
+
+### 【为什么uniqueInstance声明使用volitie修饰】  
+
+​	单例模式中会学到双重检查加锁（double-checked locking)
+
+~~~java
+public class Singleton {
+    private volatile static Singleton uniqueInstance;
+    private Singleton(){}
+    //双检锁
+    public static Singleton getInstance(){
+        if(uniqueInstance == null){
+            synchronized(Singleton.class){
+                if(uniqueInstance == null){
+                    uniqueInstance = new Singleton();
+                }
+            }
+        }
+        return uniqueInstance;
+    }
+}
+~~~
+
+​	synchronized虽然保证了原子性，但却没有保证指令重排序的正确性，会出现A线程执行初始化，但可能因为构造函数里面的操作太多了，所以A线程的uniqueInstance实例还没有造出来，但已经被赋值了。而B线程这时过来了，错以为uniqueInstance已经被实例化出来，一用才发现uniqueInstance尚未被初始化。   
 
 
 
 ## java内存模型
 
-java内存模型    
-简单阐述下Java内存模型内部原理  
-Java中多线程操作下的三个特性  
+### 【Java中多线程操作下的三个特性】
+
+1. 原子性：即一个操作或者多个操作 要么全部执行并且执行的过程不会被任何因素打断，要么就都不执行。
+2. 可见性：当多个线程访问同一个变量时，一个线程修改了这个变量的值，其他线程能够立即看得到修改的值。
+3. 有序性：程序执行的顺序按照代码的先后顺序执行。
+
+
+
+### 【Java内存模型及内部原理】
+
+​	Java内存模型（Java Memory Model，**JMM**）就是一种符合**内存模型**规范的，屏蔽了各种硬件和操作系统的访问差异的，保证了 Java 程序在各种平台下对内存的访问都能保证效果一致的机制及规范。
+
+​	Java 内存模型规定了所有的变量都存储在主内存中，每条线程还有自己的工作内存。
+
+​	线程的工作内存中保存了该线程中用到的变量的主内存副本拷贝，线程对变量的所有操作都必须在工作内存中进行，而不能直接读写主内存。
+
+​	不同的线程之间也无法直接访问对方工作内存中的变量，线程间变量的传递均需要自己的工作内存和主存之间进行数据同步进行。
+
+​	而 JMM 就作用于工作内存和主存之间数据同步过程。它规定了如何做数据同步以及什么时候做数据同步。
+
+​	**内存模型解决并发问题主要采用两种方式：**
+
+- 限制处理器优化
+- 使用内存屏障
 
 
 
 ## **CAS**
 
-cas的ABA问题怎么解决？  
-对CAS的理解，java中的CAS，如何不用unsafe实现CAS  
-atomic下的原子类有用到吗？采用了CAS  
-CAS算法在哪里有应用？  
-什么是CAS算法   
-原子类底层机制(cas, Unsafe)   
+### 【原子类底层机制】
+
+​	 对于简单的data++操作，如果使用synchronized显得有些大材小用，而且会导致线程的串行化，所以这个时候并发包下的Atomic原子类就闪亮登场，比如`AtomicInteger`
+
+~~~java
+// volatile保证可见性
+private volatile int value;
+
+/**
+     * Creates a new AtomicInteger with the given initial value.
+     *
+     * @param initialValue the initial value
+     */
+public AtomicInteger(int initialValue) {
+    value = initialValue;
+}
+
+/**
+     * Atomically increments by one the current value.
+     *
+     * @return the previous value
+     */
+public final int getAndIncrement() {
+    //这里利用unsafe方法
+    return unsafe.getAndAddInt(this, valueOffset, 1); // i++操作
+}
+~~~
+
+可以看见，Atomic原子类底层用的不是传统意义的锁机制，而是无锁化的CAS机制，通过CAS机制保证多线程修改一个数值的安全性，如下：
+
+~~~java
+public final int getAndAddInt(Object var1, long var2, int var4) {
+    int var5;
+    do {
+        var5 = this.getIntVolatile(var1, var2);
+    } while(!this.compareAndSwapInt(var1, var2, var5, var5 + var4));
+
+    return var5;
+}
+
+//native方法
+public final native boolean compareAndSwapInt(Object var1, long var2, int var4, int var5);
+~~~
+
+
+
+
+
+### 【什么是CAS算法,对CAS的理解】   
+
+​	CAS(Compare And Swap)比较交换,其实现方式是基于硬件平台的汇编指令，在intel的CPU中，使用的是`cmpxchg`指令，也就是说CAS是靠硬件实现的，从而在硬件层面提升效率。
+
+**实现思想**
+	在线程开启的时候，会从主存中给每个线程拷贝一个变量副本到线程各自的运行环境中，CAS算法中包含三个参数(V,E,N)，**V**表示内存地址、**E**表示预期的值、**N**表示新值。  
+
+**实现过程**
+
+​	假如现在有两个线程t1,t2,，他们各自的运行环境中都有共享变量的副本V1、V2，预期值E1、E2，预期主存中的值还没有被改变，假设现在在并发环境，并且t1先拿到了执行权限，失败的线程并不会被挂起，而是被告知这次竞争中失败，并可以再次发起尝试，然后t1比较预期值E1和主存中的V，发现E1=V，说明预期值是正确的，执行N1=V1+1，并将N1的值传入主存。这时候贮存中的V=21，然后t2又紧接着拿到了执行权，比较E2和主存V的值，由于V已经被t1改为21，所以E2！=V，t2线程将主存中已经改变的值更新到自己的副本中，再发起重试；直到预期值等于主存中的值，说明没有别的线程对旧值进行修改，继续执行代码，退出；
+
+**底层原理**
+CPU实现原理指令有两种方式：
+
+- ​	**通过总线锁定来保证原子性**
+  ​	总线锁定其实就是处理器使用了总线锁，所谓总线锁就是使用处理器提供的一个 LOCK# 信号，当一个处理器在总线上输出此信号时，其他处理器的请求将被阻塞住，那么该处理器可以独占共享内存。但是该方法成本太大。因此有了下面的方式。
+- ​	**通过缓存锁来保证**
+  ​	所谓缓存锁定是指内存区域如果被缓存在处理器的缓存行中，并且在Lock操作期间被锁定，那么当它执行锁操作写回内存时，处理器不在总线上声言LOCK#信号，而是修改内部地址，并允许它的缓存一致性机制来保证操作的原子性，因为缓存一致性机制会阻止同时修改两个以上处理器缓存的内存区域数据，当其他处理器回写已被锁定的缓存行的数据时，会使缓存行无效。
+
+有两种情况下处理器不会使用缓存锁定：
+
+- ​	当操作的数据不能被缓存在处理器内部，或操作的数据跨多个缓存行时，则处理器会调用总总线锁定；
+- ​	有些处理器不支持缓存锁定，对于Intel486和pentinum处理器，就是锁定的内存区域在处理器的缓存航也会调用总线锁定。
+
+**CAS缺点**
+
+- 循环时间太长；
+- 只能保证一个共享变量原子操作；
+- 会出现ABA问题；
+
+
+
+### 【CAS算法在哪里有应用】
+
+1、synchronized轻量级锁采用的就是类似于cas的实现 	
+
+2、原子类
+
+3、在`java.util.concurrent`包下提供了大量支持高效并发访问的集合接口和实现类。如：ConcurrentMap、ConcurrentLinkedQueue等线程安全集合
+
+
+
+### 【java中的CAS，如何不用unsafe实现CAS 】
+
+​	CAS是利用硬件实现的，如果不用unsafe来操纵硬件，只能自己写死循环
+
+
+
+### 【CAS的ABA问题怎么解决】
+
+​	ABA问题：当一个值从A更新为B，再从B更新为A，普通CAS机制会误判通过检测	
+
+​	解决方案：添加版本号，通过比较值和版本号才判断是否可以替换
+
+
 
 
 ## **TreadLocal** 
