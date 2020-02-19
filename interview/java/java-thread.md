@@ -750,7 +750,7 @@ public class Provider {
 
 
 
-## **锁**
+## **锁的概念**
 
 ### 【锁的分类和介绍】
 
@@ -1026,7 +1026,10 @@ static final class FairSync extends Sync {
 
    闭锁是一次性对象，一旦进入终止状态，就不能重置。而栅栏可以使一定数量的参入方反复的在栅栏位置汇集。
    
-   
+
+
+
+## 锁的原理
 
 ### 【Synchronize的实现原理】    
 
@@ -1166,6 +1169,28 @@ public static class WriteLock implements Lock, java.io.Serializable
 ~~~
 
 ​	后者多了很多实现方法（怀疑题目有点问题，要是ReentrantLock和ReentrantReadWriteLock比较才有意思）
+
+
+
+### 【根据AQS实现的几种锁】 
+
+ReentrantLock和ReentrantReadWriteLock以及CountDownLatch等锁相关的类内部都是维护了一个内部类比如
+
+Sync、NonfairSync、FairSync都是基于AQS实现
+
+~~~java
+abstract static class Sync extends AbstractQueuedSynchronizer
+//非公平
+static final class NonfairSync extends Sync
+//公平    
+static final class FairSync extends Sync
+~~~
+
+
+
+### 【对AbstractQueuedSynchronizer的理解】 
+
+​	后续源码分析
 
 
 
@@ -1396,16 +1421,299 @@ CPU实现原理指令有两种方式：
 
 ## **TreadLocal** 
 
-有没有用过TreadLocal  
-介绍ThreadLocal   
-主线程的ThreadLocal怎么传递到线程池？  
+### 【介绍ThreadLocal】
+
+   ThreadLocal可以使每个线程保存自己的一些私有数据，起到线程隔离的作用。
+
+~~~java
+	/**
+     * Returns the value in the current thread's copy of this
+     * thread-local variable.  If the variable has no value for the
+     * current thread, it is first initialized to the value returned
+     * by an invocation of the {@link #initialValue} method.
+     *
+     * @return the current thread's value of this thread-local
+     */
+    public T get() {
+        Thread t = Thread.currentThread();
+        ThreadLocalMap map = getMap(t);
+        if (map != null) {
+            ThreadLocalMap.Entry e = map.getEntry(this);
+            if (e != null) {
+                @SuppressWarnings("unchecked")
+                T result = (T)e.value;
+                return result;
+            }
+        }
+        return setInitialValue();
+    }
+
+	/**
+     * Sets the current thread's copy of this thread-local variable
+     * to the specified value.  Most subclasses will have no need to
+     * override this method, relying solely on the {@link #initialValue}
+     * method to set the values of thread-locals.
+     *
+     * @param value the value to be stored in the current thread's copy of
+     *        this thread-local.
+     */
+    public void set(T value) {
+        Thread t = Thread.currentThread();
+        ThreadLocalMap map = getMap(t);
+        if (map != null)
+            map.set(this, value);
+        else
+            createMap(t, value);
+    }
+
+	/**
+     * Removes the current thread's value for this thread-local
+     * variable.  If this thread-local variable is subsequently
+     * {@linkplain #get read} by the current thread, its value will be
+     * reinitialized by invoking its {@link #initialValue} method,
+     * unless its value is {@linkplain #set set} by the current thread
+     * in the interim.  This may result in multiple invocations of the
+     * {@code initialValue} method in the current thread.
+     *
+     * @since 1.5
+     */
+     public void remove() {
+         ThreadLocalMap m = getMap(Thread.currentThread());
+         if (m != null)
+             m.remove(this);
+     }
+~~~
+
+
+
+### 【主线程的ThreadLocal怎么传递到线程池】
+
+​	线程池可以直接使用主线程中的ThreadLocal
+
+###   
 
 
 ## **JUC**和AQS
 
-JUC包下面了解哪些？  
-JUC包下的计数锁？CountDownLatch  
-CyclicBarrier的理解  
-Semaphore类的了解  
-谈谈你对AbstractQueuedSynchronizer的理解  
-根据AQS实现的几种锁   
+### 【JUC包下面了解哪些】
+
+https://blog.csdn.net/weixin_34414196/article/details/93149855
+
+
+
+### 【CountDownLatch的理解】
+
+**概念**
+
+- countDownLatch这个类使一个线程等待其他线程各自执行完毕后再执行。
+- 是通过一个计数器来实现的，计数器的初始值是线程的数量。每当一个线程执行完毕后，计数器的值就-1，当计数器的值为0时，表示所有线程都执行完毕，然后在闭锁上等待的线程就可以恢复工作了。
+
+**源码**
+
+- countDownLatch类中只提供了一个构造器：
+
+```cpp
+//参数count为计数值
+public CountDownLatch(int count) {  };  
+```
+
+- 类中有三个方法是最重要的：
+
+```java
+//调用await()方法的线程会被挂起，它会等待直到count值为0才继续执行
+public void await() throws InterruptedException { };   
+//和await()类似，只不过等待一定的时间后count值还没变为0的话就会继续执行
+public boolean await(long timeout, TimeUnit unit) throws InterruptedException { };  
+//将count值减1
+public void countDown() { };  
+```
+
+**使用**：
+
+原文链接：https://blog.csdn.net/liangyihuai/article/details/83106584
+
+~~~java
+public class CountDownLatchTest {
+
+    public static void main(String[] args) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(4);
+        for(int i = 0; i < latch.getCount(); i++){
+            new Thread(new MyThread(latch), "player"+i).start();
+        }
+        System.out.println("正在等待所有玩家准备好");
+        latch.await();
+        System.out.println("开始游戏");
+    }
+
+    private static class MyThread implements Runnable{
+        private CountDownLatch latch ;
+
+        public MyThread(CountDownLatch latch){
+            this.latch = latch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                Random rand = new Random();
+                int randomNum = rand.nextInt((3000 - 1000) + 1) + 1000;//产生1000到3000之间的随机整数
+                Thread.sleep(randomNum);
+                System.out.println(Thread.currentThread().getName()+" 已经准备好了, 所使用的时间为 "+((double)randomNum/1000)+"s");
+                latch.countDown();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+}
+~~~
+
+结果：
+
+~~~java
+main function is finished.
+队友1, 通过了第0个障碍物, 使用了 1.432s
+队友0, 通过了第0个障碍物, 使用了 1.465s
+队友2, 通过了第0个障碍物, 使用了 2.26s
+队友1, 通过了第1个障碍物, 使用了 1.542s
+队友0, 通过了第1个障碍物, 使用了 2.154s
+队友2, 通过了第1个障碍物, 使用了 2.556s
+队友1, 通过了第2个障碍物, 使用了 1.426s
+队友2, 通过了第2个障碍物, 使用了 2.603s
+队友0, 通过了第2个障碍物, 使用了 2.784s
+
+~~~
+
+
+
+**CountDownLatch和CyclicBarrier区别：**  
+ 1.countDownLatch是一个计数器，线程完成一个记录一个，计数器递减，只能只用一次   
+ 2.CyclicBarrier的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供reset功能，可以多次使用  
+
+
+
+### 【CyclicBarrier的理解】
+
+**概念：**
+
+​	利用CyclicBarrier类可以实现一组线程相互等待，当所有线程都到达某个屏障点后再进行后续的操作。
+
+**源码**：
+
+构造器
+
+~~~java
+public CyclicBarrier(int parties, Runnable barrierAction) {
+    if (parties <= 0) throw new IllegalArgumentException();
+    this.parties = parties;
+    this.count = parties;
+    this.barrierCommand = barrierAction;
+}
+public CyclicBarrier(int parties) {
+    this(parties, null);
+}
+~~~
+
+主要方法：
+
+~~~java
+public int await() throws InterruptedException, BrokenBarrierException {
+    try {
+        return dowait(false, 0L);
+    } catch (TimeoutException toe) {
+        throw new Error(toe); // cannot happen
+    }
+}
+
+public void reset() {
+    final ReentrantLock lock = this.lock;
+    lock.lock();
+    try {
+        breakBarrier();   // break the current generation
+        nextGeneration(); // start a new generation
+    } finally {
+        lock.unlock();
+    }
+}
+~~~
+
+
+
+**使用：**
+
+原文链接：https://blog.csdn.net/liangyihuai/article/details/83106584
+
+~~~java
+public class CyclicBarrierTest {
+    public static void main(String[] args) {
+        CyclicBarrier barrier = new CyclicBarrier(3);
+        for(int i = 0; i < barrier.getParties(); i++){
+            new Thread(new MyRunnable(barrier), "队友"+i).start();
+        }
+        System.out.println("main function is finished.");
+    }
+
+
+    private static class MyRunnable implements Runnable{
+        private CyclicBarrier barrier;
+
+        public MyRunnable(CyclicBarrier barrier){
+            this.barrier = barrier;
+        }
+
+        @Override
+        public void run() {
+            for(int i = 0; i < 3; i++) {
+                try {
+                    Random rand = new Random();
+                    int randomNum = rand.nextInt((3000 - 1000) + 1) + 1000;//产生1000到3000之间的随机整数
+                    Thread.sleep(randomNum);
+                    System.out.println(Thread.currentThread().getName() + ", 通过了第"+i+"个障碍物, 使用了 "+((double)randomNum/1000)+"s");
+                    this.barrier.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+~~~
+
+结果：
+
+~~~java
+main function is finished.
+队友1, 通过了第0个障碍物, 使用了 1.432s
+队友0, 通过了第0个障碍物, 使用了 1.465s
+队友2, 通过了第0个障碍物, 使用了 2.26s
+队友1, 通过了第1个障碍物, 使用了 1.542s
+队友0, 通过了第1个障碍物, 使用了 2.154s
+队友2, 通过了第1个障碍物, 使用了 2.556s
+队友1, 通过了第2个障碍物, 使用了 1.426s
+队友2, 通过了第2个障碍物, 使用了 2.603s
+队友0, 通过了第2个障碍物, 使用了 2.784s
+~~~
+
+
+
+### 【Semaphore的理解】
+
+**概念：**  
+
+​	信号量Semaphore也是一个线程同步的辅助类，可以维护当前访问自身的线程个数，并提供了同步机制。使用Semaphore可以控制同时访问资源的线程个数，例如，实现一个文件允许的并发访问数。
+
+**源码：**
+
+~~~java
+void acquire():从此信号量获取一个许可，在提供一个许可前一直将线程阻塞，否则线程被中断。
+
+void release():释放一个许可，将其返回给信号量。
+
+int availablePermits():返回此信号量中当前可用的许可数。
+
+boolean hasQueuedThreads():查询是否有线程正在等待获取。
+~~~
+
