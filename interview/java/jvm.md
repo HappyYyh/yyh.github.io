@@ -861,7 +861,6 @@ System.getProperty("java.class.path");
 
   它用来加载 Java 的核心类，是用原生代码来实现的，并不继承自 java.lang.ClassLoader（负责加载$JAVA_HOME中jre/lib/rt.jar里所有的class，由C++实现，不是ClassLoader子类）。由于引导类加载器涉及到虚拟机本地实现细节，开发者无法直接获取到启动类加载器的引用，所以不允许直接通过引用进行操作。
   
-
 - **扩展类加载器**（`Extension`）
 
   它负责加载JRE的扩展目录，lib/ext或者由java.ext.dirs系统属性指定的目录中的JAR包的类。由Java语言实现，父类加载器为null。
@@ -932,20 +931,389 @@ System.getProperty("java.class.path");
 
 ## **分析调优** 
 
-### 【Jvm如何支持编解码】 
+### 【OOM的分类？发生的原因？解决方式？】
 
-JVM参数可以设置字符编码	`-Dfile.encoding=utf-8` 
+[原文](https://blog.csdn.net/qq_40916779/article/details/99680243)
+
+当 JVM 内存严重不足时，就会抛出 java.lang.OutOfMemoryError 错误。
+
+1. **Java heap space**
+
+   **概念**：
+
+   当堆内存（Heap Space）没有足够空间存放新创建的对象时，就会抛出 `java.lang.OutOfMemoryError:Javaheap space` 错误（根据实际生产经验，可以对程序日志中的 OutOfMemoryError 配置关键字告警，一经发现，立即处理）。
+
+   
+
+   **原因分析：**
+
+   `Java heap space` 错误产生的常见原因可以分为以下几类：
+
+   1、请求创建一个超大对象，通常是一个大数组。
+
+   2、超出预期的访问量/数据量，通常是上游系统请求流量飙升，常见于各类促销/秒杀活动，可以结合业务流量指标排查是否有尖状峰值。
+
+   3、过度使用终结器（Finalizer），该对象没有立即被 GC。
+
+   4、内存泄漏（Memory Leak），大量对象引用没有释放，JVM 无法对其自动回收，常见于使用了 File 等资源没有回收。
+
+   
+
+   **解决方案:**
+
+   针对大部分情况，通常只需要通过 `-Xmx` 参数调高 JVM 堆内存空间即可。如果仍然没有解决，可以参考以下情况做进一步处理：
+
+   1、如果是超大对象，可以检查其合理性，比如是否一次性查询了数据库全部结果，而没有做结果数限制。
+
+   2、如果是业务峰值压力，可以考虑添加机器资源，或者做限流降级。
+
+   3、如果是内存泄漏，需要找到持有的对象，修改代码设计，比如关闭没有释放的连接。
+
+   
+
+2. **GC overhead limit exceeded**
+
+   当 Java 进程花费 98% 以上的时间执行 GC，但只恢复了不到 2% 的内存，且该动作连续重复了 5 次，就会抛出 `java.lang.OutOfMemoryError:GC overhead limit exceeded` 错误。简单地说，就是应用程序已经基本耗尽了所有可用内存， GC 也无法回收。
+
+   此类问题的原因与解决方案跟 `Javaheap space` 非常类似，可以参考上文。
+
+   
+
+3. **Permgen space**
+
+   **概念：**
+
+   该错误表示永久代（Permanent Generation）已用满，通常是因为加载的 class 数目太多或体积太大。
+
+   
+
+   **原因分析:**
+
+   永久代存储对象主要包括以下几类：
+
+   1、加载/缓存到内存中的 class 定义，包括类的名称，字段，方法和字节码；
+
+   2、常量池；
+
+   3、对象数组/类型数组所关联的 class；
+
+   4、JIT 编译器优化后的 class 信息。
+
+   PermGen 的使用量与加载到内存的 class 的数量/大小正相关。
+
+   
+
+   **解决方案:**
+
+   根据 Permgen space 报错的时机，可以采用不同的解决方案，如下所示：
+
+   1、程序启动报错，修改 `-XX:MaxPermSize` 启动参数，调大永久代空间。
+
+   2、应用重新部署时报错，很可能是没有应用没有重启，导致加载了多份 class 信息，只需重启 JVM 即可解决。
+
+   3、运行时报错，应用程序可能会动态创建大量 class，而这些 class 的生命周期很短暂，但是 JVM 默认不会卸载 class，可以设置 `-XX:+CMSClassUnloadingEnabled` 和 `-XX:+UseConcMarkSweepGC`这两个参数允许 JVM 卸载 class。
+
+   如果上述方法无法解决，可以通过 jmap 命令 dump 内存对象 `jmap-dump:format=b,file=dump.hprof` ，然后利用 Eclipse MAT https://www.eclipse.org/mat 功能逐一分析开销最大的 classloader 和重复 class。
+
+   
+
+4. **Metaspace**
+
+   JDK 1.8 使用 Metaspace 替换了永久代（Permanent Generation），该错误表示 Metaspace 已被用满，通常是因为加载的 class 数目太多或体积太大。
+
+   此类问题的原因与解决方法跟 `Permgenspace` 非常类似，可以参考上文。需要特别注意的是调整 Metaspace 空间大小的启动参数为 `-XX:MaxMetaspaceSize`。
+
+   
+
+5. **Unable to create new native thread**
+
+   **概念：**
+
+   每个 Java 线程都需要占用一定的内存空间，当 JVM 向底层操作系统请求创建一个新的 native 线程时，如果没有足够的资源分配就会报此类错误。
+
+   
+
+   **原因分析：**
+
+   JVM 向 OS 请求创建 native 线程失败，就会抛出 `Unableto createnewnativethread`，常见的原因包括以下几类：
+
+   1、线程数超过操作系统最大线程数 ulimit 限制；
+
+   2、线程数超过 kernel.pid_max（只能重启）；
+
+   3、native 内存不足；
+
+   该问题发生的常见过程主要包括以下几步：
+
+   1、JVM 内部的应用程序请求创建一个新的 Java 线程；
+
+   2、JVM native 方法代理了该次请求，并向操作系统请求创建一个 native 线程；
+
+   3、操作系统尝试创建一个新的 native 线程，并为其分配内存；
+
+   4、如果操作系统的虚拟内存已耗尽，或是受到 32 位进程的地址空间限制，操作系统就会拒绝本次 native 内存分配；
+
+   5、JVM 将抛出 `java.lang.OutOfMemoryError:Unableto createnewnativethread` 错误。
+
+   
+
+   **解决方案:**
+
+   1、升级配置，为机器提供更多的内存；
+
+   2、降低 Java Heap Space 大小；
+
+   3、修复应用程序的线程泄漏问题；
+
+   4、限制线程池大小；
+
+   5、使用 -Xss 参数减少线程栈的大小；
+
+   6、调高 OS 层面的线程最大数：执行 `ulimia-a` 查看最大线程数限制，使用 `ulimit-u xxx` 调整最大线程数限制。
+
+   ulimit -a .... 省略部分内容 ..... max user processes (-u) 16384
+
+   
+
+6. **Out of swap space？**
+
+   **概念：**
+
+   该错误表示所有可用的虚拟内存已被耗尽。虚拟内存（Virtual Memory）由物理内存（Physical Memory）和交换空间（Swap Space）两部分组成。当运行时程序请求的虚拟内存溢出时就会报 `Outof swap space?` 错误。
+
+   
+
+   **原因分析:**
+
+   该错误出现的常见原因包括以下几类：
+
+   1、地址空间不足；
+
+   2、物理内存已耗光；
+
+   3、应用程序的本地内存泄漏（native leak），例如不断申请本地内存，却不释放。
+
+   4、执行 `jmap-histo:live` 命令，强制执行 Full GC；如果几次执行后内存明显下降，则基本确认为 Direct ByteBuffer 问题。
+
+   
+
+   **解决方案：**
+
+   根据错误原因可以采取如下解决方案：
+
+   1、升级地址空间为 64 bit；
+
+   2、使用 Arthas 检查是否为 Inflater/Deflater 解压缩问题，如果是，则显式调用 end 方法。
+
+   3、Direct ByteBuffer 问题可以通过启动参数 `-XX:MaxDirectMemorySize` 调低阈值。
+
+   4、升级服务器配置/隔离部署，避免争用。
+
+   
+
+7. **Kill process or sacrifice child**
+
+   **概念：**
+
+   有一种内核作业（Kernel Job）名为 Out of Memory Killer，它会在可用内存极低的情况下“杀死”（kill）某些进程。OOM Killer 会对所有进程进行打分，然后将评分较低的进程“杀死”，具体的评分规则可以参考 Surviving the Linux OOM Killer。
+
+   不同于其他的 OOM 错误， `Killprocessorsacrifice child` 错误不是由 JVM 层面触发的，而是由操作系统层面触发的。
+
+   
+
+   **原因分析：**
+
+   默认情况下，Linux 内核允许进程申请的内存总量大于系统可用内存，通过这种“错峰复用”的方式可以更有效的利用系统资源。
+
+   然而，这种方式也会无可避免地带来一定的“超卖”风险。例如某些进程持续占用系统内存，然后导致其他进程没有可用内存。此时，系统将自动激活 OOM Killer，寻找评分低的进程，并将其“杀死”，释放内存资源。
+
+   
+
+   **解决方案：**
+
+   1、升级服务器配置/隔离部署，避免争用。
+
+   2、OOM Killer 调优。
+
+   
+
+8. **Requested array size exceeds VM limit**
+
+   JVM 限制了数组的最大长度，该错误表示程序请求创建的数组超过最大长度限制。
+
+   JVM 在为数组分配内存前，会检查要分配的数据结构在系统中是否可寻址，通常为 `Integer.MAX_VALUE-2`。
+
+   此类问题比较罕见，通常需要检查代码，确认业务是否需要创建如此大的数组，是否可以拆分为多个块，分批执行。
+
+   
+
+9. **Direct buffer memory**
+
+   **概念：**
+
+   Java 允许应用程序通过 Direct ByteBuffer 直接访问堆外内存，许多高性能程序通过 Direct ByteBuffer 结合内存映射文件（Memory Mapped File）实现高速 IO。
+
+   
+
+   **原因分析：**
+
+   Direct ByteBuffer 的默认大小为 64 MB，一旦使用超出限制，就会抛出 `Directbuffer memory` 错误。
+
+   
+
+   **解决方案：**
+
+   1、Java 只能通过 ByteBuffer.allocateDirect 方法使用 Direct ByteBuffer，因此，可以通过 Arthas 等在线诊断工具拦截该方法进行排查。
+
+   2、检查是否直接或间接使用了 NIO，如 netty，jetty 等。
+
+   3、通过启动参数 `-XX:MaxDirectMemorySize` 调整 Direct ByteBuffer 的上限值。
+
+   4、检查 JVM 参数是否有 `-XX:+DisableExplicitGC` 选项，如果有就去掉，因为该参数会使 `System.gc()` 失效。
+
+   5、检查堆外内存使用代码，确认是否存在内存泄漏；或者通过反射调用 `sun.misc.Cleaner` 的 `clean()` 方法来主动释放被 Direct ByteBuffer 持有的内存空间。
+
+   6、内存容量确实不足，升级配置。
+
+
+
+### 【让你自己实现OOM，你会怎么做】
+
+通过死循环无限创建字节数组（大对象），无法回收，很快就会OOM
+
+~~~java
+public static void main(String[] args){
+    List<Byte[]> list = new ArrayList<>();
+    while(true){
+        list.add(new Byte[20000 * 1024 * 1024]);
+    }
+}
+~~~
 
 
 
 
 
-如何分析OOM发生的原因？  
-让你自己实现OOM，你会怎么做？  
-高并发环境如何避免OOM。  
-有过GC调优的经历么  
-JVM与GC，如果大访问量，哪部分可能会OOM，如何处理  
-JVM参数调优  
-说一说JVM调优的思路及你是怎么样调优的  
-数据如果出现了阻塞，你是怎么排查的，top和jstack命令用过没，jstack命令的nid是什么意思，怎么查看java某个进程的线程   
-JVM相关的分析工具有使用过哪些？具体的性能调优步骤吗？ 
+### 【高并发环境如何避免OOM】  
+
+1）尽量少的创建对象，优化业务处理逻辑，特别是占用内存大的对象。例如：我们可以把收到请求的 Request 对象在业务流程中一直传递下去，而不是每执行一个步骤，就创建一个内容和 Request 对象差不多的新对象。
+
+2）考虑自行回收并重用对象。建立一个对象池。收到请求后，在对象池内申请一个对象，使用完后再放回到对象池中，这样就可以反复地重用这些对象，非常有效地避免频繁触发垃圾回收。
+
+3）尽可能使用内存大的服务器
+
+
+
+### 【如果大访问量，哪部分可能会OOM，如何处理】
+
+大访问量即高并发，除了程序计数器外都会有可能OOM，处理方式可以参照上上题
+
+
+
+### 【数据如果出现了阻塞，你是怎么排查的】
+
+数据阻塞即请求没有响应
+
+
+
+### 【JVM参数调优】
+
+[摘自：](https://www.cnblogs.com/anyehome/p/9071619.html)
+
+**JVM参数的含义**
+
+|        **参数名称**         |                          **含义**                          |      **默认值**      |                                                              |
+| :-------------------------: | :--------------------------------------------------------: | :------------------: | ------------------------------------------------------------ |
+|            -Xms             |                         初始堆大小                         | 物理内存的1/64(<1GB) | 默认(MinHeapFreeRatio参数可以调整)空余堆内存小于40%时，JVM就会增大堆直到-Xmx的最大限制. |
+|            -Xmx             |                         最大堆大小                         | 物理内存的1/4(<1GB)  | 默认(MaxHeapFreeRatio参数可以调整)空余堆内存大于70%时，JVM会减少堆直到 -Xms的最小限制 |
+|            -Xmn             |                  年轻代大小(1.4or lator)                   |                      | **注意**：此处的大小是（eden+ 2 survivor space).与jmap -heap中显示的New gen是不同的。 整个堆大小=年轻代大小 + 年老代大小 + 持久代大小. 增大年轻代后,将会减小年老代大小.此值对系统性能影响较大,Sun官方推荐配置为整个堆的3/8 |
+|         -XX:NewSize         |                设置年轻代大小(for 1.3/1.4)                 |                      |                                                              |
+|       -XX:MaxNewSize        |                 年轻代最大值(for 1.3/1.4)                  |                      |                                                              |
+|        -XX:PermSize         |                 设置持久代(perm gen)初始值                 |    物理内存的1/64    |                                                              |
+|       -XX:MaxPermSize       |                      设置持久代最大值                      |    物理内存的1/4     |                                                              |
+|            -Xss             |                     每个线程的堆栈大小                     |                      | JDK5.0以后每个线程堆栈大小为1M,以前每个线程堆栈大小为256K.更具应用的线程所需内存大小进行 调整.在相同物理内存下,减小这个值能生成更多的线程.但是操作系统对一个进程内的线程数还是有限制的,不能无限生成,经验值在3000~5000左右 一般小的应用， 如果栈不是很深， 应该是128k够用的 大的应用建议使用256k。这个选项对性能影响比较大，需要严格的测试。（校长） 和threadstacksize选项解释很类似,官方文档似乎没有解释,在论坛中有这样一句话:"” -Xss is translated in a VM flag named ThreadStackSize” 一般设置这个值就可以了。 |
+|    -*XX:ThreadStackSize*    |                     Thread Stack Size                      |                      | (0 means use default stack size) [Sparc: 512; Solaris x86: 320 (was 256 prior in 5.0 and earlier); Sparc 64 bit: 1024; Linux amd64: 1024 (was 0 in 5.0 and earlier); all others 0.] |
+|        -XX:NewRatio         | 年轻代(包括Eden和两个Survivor区)与年老代的比值(除去持久代) |                      | -XX:NewRatio=4表示年轻代与年老代所占比值为1:4,年轻代占整个堆栈的1/5 Xms=Xmx并且设置了Xmn的情况下，该参数不需要进行设置。 |
+|      -XX:SurvivorRatio      |                Eden区与Survivor区的大小比值                |                      | 设置为8,则两个Survivor区与一个Eden区的比值为2:8,一个Survivor区占整个年轻代的1/10 |
+|  -XX:LargePageSizeInBytes   |        内存页的大小不可设置过大， 会影响Perm的大小         |                      | =128m                                                        |
+| -XX:+UseFastAccessorMethods |                     原始类型的快速优化                     |                      |                                                              |
+|   -XX:+DisableExplicitGC    |                      关闭System.gc()                       |                      | 这个参数需要严格的测试                                       |
+|  -XX:MaxTenuringThreshold   |                        垃圾最大年龄                        |                      | 如果设置为0的话,则年轻代对象不经过Survivor区,直接进入年老代. 对于年老代比较多的应用,可以提高效率.如果将此值设置为一个较大值,则年轻代对象会在Survivor区进行多次复制,这样可以增加对象再年轻代的存活 时间,增加在年轻代即被回收的概率 该参数只有在串行GC时才有效. |
+|     -XX:+AggressiveOpts     |                          加快编译                          |                      |                                                              |
+|    -XX:+UseBiasedLocking    |                      锁机制的性能改善                      |                      |                                                              |
+|         -Xnoclassgc         |                        禁用垃圾回收                        |                      |                                                              |
+| -XX:SoftRefLRUPolicyMSPerMB |          每兆堆空闲空间中SoftReference的存活时间           |          1s          | softly reachable objects will remain alive for some amount of time after the last time they were referenced. The default value is one second of lifetime per free megabyte in the heap |
+| -XX:PretenureSizeThreshold  |               对象超过多大是直接在旧生代分配               |          0           | 单位字节 新生代采用Parallel Scavenge GC时无效 另一种直接在旧生代分配的情况是大的数组对象,且数组中无外部引用对象. |
+| -XX:TLABWasteTargetPercent  |                    TLAB占eden区的百分比                    |          1%          |                                                              |
+|   -XX:+*CollectGen0First*   |                     FullGC时是否先YGC                      |        false         |                                                              |
+
+**并行收集器相关参数**
+
+|                             |                                                   |      |                                                              |
+| :-------------------------: | :-----------------------------------------------: | :--: | :----------------------------------------------------------: |
+|     -XX:+UseParallelGC      |       Full GC采用parallel MSC (此项待验证)        |      | 选择垃圾收集器为并行收集器.此配置仅对年轻代有效.即上述配置下,年轻代使用并发收集,而年老代仍旧使用串行收集.(此项待验证) |
+|      -XX:+UseParNewGC       |               设置年轻代为并行收集                |      | 可与CMS收集同时使用 JDK5.0以上,JVM会根据系统配置自行设置,所以无需再设置此值 |
+|    -XX:ParallelGCThreads    |                并行收集器的线程数                 |      |          此值最好配置与处理器数目相等 同样适用于CMS          |
+|    -XX:+UseParallelOldGC    | 年老代垃圾收集方式为并行收集(Parallel Compacting) |      |                  这个是JAVA 6出现的参数选项                  |
+|    -XX:MaxGCPauseMillis     |    每次年轻代垃圾回收的最长时间(最大暂停时间)     |      |    如果无法满足此时间,JVM会自动调整年轻代大小,以满足此值.    |
+| -XX:+UseAdaptiveSizePolicy  |    自动选择年轻代区大小和相应的Survivor区比例     |      | 设置此选项后,并行收集器会自动选择年轻代区大小和相应的Survivor区比例,以达到目标系统规定的最低相应时间或者收集频率等,此值建议使用并行收集器时,一直打开. |
+|       -XX:GCTimeRatio       |      设置垃圾回收时间占程序运行时间的百分比       |      |                        公式为1/(1+n)                         |
+| -XX:+*ScavengeBeforeFullGC* |                 Full GC前调用YGC                  | true | Do young generation GC prior to a full GC. (Introduced in 1.4.1.) |
+
+**CMS相关参数**
+
+|                                        |                                           |      |                                                              |
+| :------------------------------------: | :---------------------------------------: | ---- | :----------------------------------------------------------: |
+|        -XX:+UseConcMarkSweepGC         |              使用CMS内存收集              |      | 测试中配置这个以后,-XX:NewRatio=4的配置失效了,原因不明.所以,此时年轻代大小最好用-Xmn设置.??? |
+|          -XX:+AggressiveHeap           |                                           |      | 试图是使用大量的物理内存 长时间大内存使用的优化，能检查计算资源（内存， 处理器数量） 至少需要256MB内存 大量的CPU／内存， （在1.4.1在4CPU的机器上已经显示有提升） |
+|     -XX:CMSFullGCsBeforeCompaction     |           多少次后进行内存压缩            |      | 由于并发收集器不对内存空间进行压缩,整理,所以运行一段时间以后会产生"碎片",使得运行效率降低.此值设置运行多少次GC以后对内存空间进行压缩,整理. |
+|     -XX:+CMSParallelRemarkEnabled      |               降低标记停顿                |      |                                                              |
+|   -XX+UseCMSCompactAtFullCollection    |     在FULL GC的时候， 对年老代的压缩      |      | CMS是不会移动内存的， 因此， 这个非常容易产生碎片， 导致内存不够用， 因此， 内存的压缩这个时候就会被启用。 增加这个参数是个好习惯。 可能会影响性能,但是可以消除碎片 |
+|   -XX:+UseCMSInitiatingOccupancyOnly   |     使用手动定义初始化定义开始CMS收集     |      |                  禁止hostspot自行触发CMS GC                  |
+| -XX:CMSInitiatingOccupancyFraction=70  | 使用cms作为垃圾回收 使用70％后开始CMS收集 | 92   | 为了保证不出现promotion failed(见下面介绍)错误,该值的设置需要满足以下公式**[CMSInitiatingOccupancyFraction计算公式](https://www.cnblogs.com/redcreen/archive/2011/05/04/2037057.html#CMSInitiatingOccupancyFraction_value)** |
+| -XX:CMSInitiatingPermOccupancyFraction |    设置Perm Gen使用到达多少比率时触发     | 92   |                                                              |
+|        -XX:+CMSIncrementalMode         |              设置为增量模式               |      |                        用于单CPU情况                         |
+|     -XX:+CMSClassUnloadingEnabled      |                                           |      |                                                              |
+
+**辅助信息**
+
+|                                       |                                                          |      |                                                              |
+| :-----------------------------------: | :------------------------------------------------------: | :--: | :----------------------------------------------------------: |
+|             -XX:+PrintGC              |                                                          |      | 输出形式:[GC 118250K->113543K(130112K), 0.0094143 secs] [Full GC 121376K->10414K(130112K), 0.0650971 secs] |
+|          -XX:+PrintGCDetails          |                                                          |      | 输出形式:[GC [DefNew: 8614K->781K(9088K), 0.0123035 secs] 118250K->113543K(130112K), 0.0124633 secs] [GC [DefNew: 8614K->8614K(9088K), 0.0000665 secs][Tenured: 112761K->10414K(121024K), 0.0433488 secs] 121376K->10414K(130112K), 0.0436268 secs] |
+|        -XX:+PrintGCTimeStamps         |                                                          |      |                                                              |
+|    -XX:+PrintGC:PrintGCTimeStamps     |                                                          |      | 可与-XX:+PrintGC -XX:+PrintGCDetails混合使用 输出形式:11.851: [GC 98328K->93620K(130112K), 0.0082960 secs] |
+|  -XX:+PrintGCApplicationStoppedTime   |     打印垃圾回收期间程序暂停的时间.可与上面混合使用      |      | 输出形式:Total time for which application threads were stopped: 0.0468229 seconds |
+| -XX:+PrintGCApplicationConcurrentTime | 打印每次垃圾回收前,程序未中断的执行时间.可与上面混合使用 |      |         输出形式:Application time: 0.5291524 seconds         |
+|          -XX:+PrintHeapAtGC           |                 打印GC前后的详细堆栈信息                 |      |                                                              |
+|           -Xloggc:filename            |   把相关日志信息记录到文件以便分析. 与上面几个配合使用   |      |                                                              |
+|       -XX:+PrintClassHistogram        |     garbage collects before printing the histogram.      |      |                                                              |
+|            -XX:+PrintTLAB             |                  查看TLAB空间的使用情况                  |      |                                                              |
+|     XX:+PrintTenuringDistribution     |           查看每次minor GC后新的存活周期的阈值           |      | Desired survivor size 1048576 bytes, new threshold 7 (max 15) new threshold 7即标识新的存活周期的阈值为7。 |
+
+
+
+### 【JVM如何支持编解码】 
+
+​	JVM参数可以设置字符编码	`-Dfile.encoding=utf-8` 
+
+
+
+### 【JVM相关的分析工具有使用过哪些】
+
+[原文：](https://blog.csdn.net/moshang_3377/article/details/94714716)
+
+一、CLI
+
+- jps
+- jstatd
+- jmap
+- jinfo
+- jstack
+- jstat
+
+二、GUI
+
+- jconsole
+- jvisualvm
+
