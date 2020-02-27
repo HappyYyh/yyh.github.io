@@ -35,9 +35,9 @@ show variables like '%slow%';
 show global status like '%slow%';
 ~~~
 
-2、**利用expain分析慢语句**
+2、**利用EXPAIN分析慢语句**
 
-expain出现的字段解释：
+EXPAIN出现的字段解释：
 
 - id:选择标识符;
 - select_type:表示查询的类型;
@@ -61,6 +61,165 @@ expain出现的字段解释：
 
 
 
+### 【数据库的大表查询优化了解吗】
+
+1、对查询进行优化，要尽量避免全表扫描，首先应考虑在 where 及 order by 涉及的列上建立索引。
+
+2、应尽量避免在 where 子句中使用`null、 != 或 <>、or、in 和 not in`参数、函数，模糊查询like，否则将导致引擎放弃使用索引而进行全表扫描
+
+
+
+### 【数据库宕机后恢复的过程】
+
+主要使用回退段进行恢复，每次提交事务的时候，日志里会记录一条，同时回退段内会记录事务前和事务后的数据变化。当宕机后，数据库开始回退事务，数据从回退段取，保证数据的一致性
+
+
+
+
+## 设计
+
+### 【平常业务中的数据都怎么存储的】
+
+PostgreSQL数据库存储数据记录、Redis作为缓存、利用三方插件存储文件(这里都放在阿里云服务器上)
+
+
+
+### 【在建表的时候应该注意什么】
+
+1. 大数据字段最好剥离出单独的表，以便影响性能
+
+2. 使用varchar，代替char，这是因为varchar会动态分配长度，char指定为20，即时你存储字符“1”，它依然是20的长度
+
+3. 给表建立主键，看到好多表没主键，这在查询和索引定义上将有一定的影响
+
+4. 避免表字段运行为null，如果不知道添加什么值，建议设置默认值，特别int类型，比如默认值为0，在索引查询上，效率立显。
+
+5. 建立索引，聚集索引则意味着数据的物理存储顺序，最好在唯一的，非空的字段上建立，其它索引也不是越多越好，索引在查询上优势显著，在频繁更新数据的字段上建立聚集索引，后果很严重，插入更新相当忙。
+
+6. 组合索引和单索引的建立，要考虑查询实际和具体模式.
+
+
+
+### 【SQL注入的概念以及怎么预防】 
+
+**概念：**
+
+> SQL注入是一种将SQL代码添加到输入参数中，传递到SQL服务器解析并执行的一种攻击手法
+
+**如何预防SQL注入：**
+
+- 严格检查输入格式的类型和格式（数据强校验 id）
+- 过滤或者转义特殊字符
+- 不要使用动态拼装sql
+- 使用mybatis的时候使用#{}占位符代替${}
+
+
+
+### 【数据库分页查询，如何分页，怎么实现】 
+
+当数据量过大时，不可能直接把所有数据都展示出来，这样会加重服务器压力乃至崩溃，对于不同的数据库分页略有不同：
+
+MySql（第一个参数是页码，第二个参数是取多少个记录）
+
+~~~sql
+select * from tbl_user limit 1,10//从第一页查询，查10条
+~~~
+
+Oracle(rownum不能使用>,所以用法是把其变成变量进行查询)
+
+~~~sql
+select * from (select rownum r,t.* from tbl_user t) tt where tt.r between 1 and 10;
+~~~
+
+PostgreSQL（第一个参数是取多少个，第二个参数是起点）
+
+~~~sql
+select * from persons limit  10  offset 0;//取10条记录
+~~~
+
+
+
+### 【如何自定义数据库连接池？如何保证连接存活，意义是什么】     
+
+编写连接池需要实现 `javax.sql.DataSource` 接口。
+
+~~~java
+public class MyDataSource implements javax.sql.DataSource {
+
+    private static LinkedList<Connection> connections = new LinkedList<>();
+
+    static {
+        try {
+            //初始化10个连接出来
+            for (int i = 0; i < 10; i++) {
+                connections.add(new MyConnection(JdbcUtils.getConnection()));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    private static MyDataSource myDataSource = new MyDataSource();
+
+    public static MyDataSource getDataSource() {
+        return myDataSource;
+    }
+
+    private MyDataSource() {
+    }
+
+    @Override
+    public Connection getConnection() throws SQLException {
+        if (connections.size() < 1) {
+            throw new SQLException("数据库连接正忙，请稍后再试...");
+        }
+        return connections.removeFirst();
+    }
+    ....
+    ....
+    ....
+
+    // 包装器类 ，对MyDataSource类 进行增强
+    static class MyConnection implements Connection {
+        private Connection connection;
+        
+        public MyConnection(Connection connection) {
+            this.connection = connection;
+        }
+
+    	// 其他方法，直接调用 connection的方法。。
+        @Override
+        public Statement createStatement() throws SQLException {
+            return connection.createStatement();
+        }
+
+        @Override
+        public PreparedStatement prepareStatement(String sql) throws SQLException {
+            return connection.prepareStatement(sql);
+        }
+    ....
+
+    //  重点关注 close方法，对其进行增强，不将连接返回给数据库
+   		@Override
+        public void close() throws SQLException {
+            System.out.println("连接池中的剩余连接量："+connections.size());
+            connections.add(this) ;
+            System.out.println("成功拦截关闭！将它们返给连接池。。");
+
+            System.out.println("连接池中的剩余连接量："+connections.size());
+        }
+    ....
+    }   
+}
+~~~
+
+**保证连接存活：**
+
+专门线程负责定时检查每个连接是否存活，将死链移除；还有线程负责创建连接，如果连接池有效连接数量不够，就会创建连接。
+
+
+
 ### 【分布式数据库的实现】
 
 分布式数据库概念：https://www.jianshu.com/p/a8e46880b695
@@ -78,6 +237,18 @@ expain出现的字段解释：
 参考：https://www.jianshu.com/p/4503fe0ace87
 
 
+
+### 【分布式数据库如何保证数据可靠性】  
+
+1. **Redo Log**
+
+2. **主从热备**
+
+3. **备份/恢复**
+
+4. **存储层数据校验**
+
+   
 
 ### 【如何实现数据库动态扩容】
 
@@ -174,7 +345,16 @@ expain出现的字段解释：
 4. **range和hash组合方案**
 
    设计是比较简单的，就三张表，把group，db,table之间建立好关联关系。
-             
+
+
+
+### 【分库分表如何排序】
+
+1、排序后合并再排序（性能较差）
+
+2、在表中加个创建时间作为辅助字段，然后分页的数据根据创建时间进行排序，然后取出符合条件的最前面n条即可
+
+
 
 ### 【MySQL的读写分离、主从复制】
 
@@ -194,21 +374,32 @@ expain出现的字段解释：
 
 
 
+### 【如何实现主从数据库间的同步】
 
-## 设计
+- 1、**半同步复制**
 
-数据库是怎么保证一定不会丢失数据的  
-平常业务中的数据都怎么存储的  
-分库分表如何排序  
-分布式数据库如何保证数据可靠性  
-SQL注入   ，SQL注入怎么预防？  
-数据库分页查询，如何分页，怎么实现  
-你在建表的时候应该注意什么。  
-你知道回表吗？  
-频繁的增删数据量某个表，数据库最终数据只有几万或者更少，为什么查询会变慢   
-数据库的大表查询优化了解吗？MVCC机制了解不？MVCC机制有什么问题？怎么去解决这个问题？        
-如何自定义数据库连接池，如何保证连接存活，意义是什么。  
-数据库一致性方案  
-数据库宕机后恢复的过程   
-如何保证不同数据库之间的数据一致性  
-如何实现主从数据库间的同步   
+  等主从同步完成之后，等主库上的写请求再返回
+
+  MySQL的Replication默认是一个异步复制的过程，从MySQL5.5开始，MySQL以插件的形式支持半同步复制
+
+- 2、**数据库中间件**
+
+  **流程：**
+
+  - 所有的读写都走数据库中间件，通常情况下，写请求路由到主库，读请求路由到从库
+
+  - 记录所有路由到写库的key，在主从同步时间窗口内（假设是500ms），如果有读请求访问中间件，此时有可能从库还是旧数据，就把这个key上的读请求路由到主库。
+
+  - 在主从同步时间过完后，对应key的读请求继续路由到从库。
+
+  **相关的中间件有：**
+
+  - canal:是阿里巴巴旗下的一款开源项目，纯Java开发,基于数据库增量日志解析，提供增量数据订阅&消费，目前主要支持了MySQL。
+
+  - otter：也是阿里开源的一个分布式数据库同步系统，尤其是在跨机房数据库同步方面，有很强大的功能。它是基于数据库增量日志解析，实时将数据同步到本机房或跨机房的mysql/oracle数据库。
+
+
+
+### 【数据库一致性方案】  
+
+即主从同步，参照上题
