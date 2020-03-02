@@ -4,4 +4,6 @@ permalink: /interview/microservicesAndDistribution/es
 key: microservicesAndDistribution-es
 ---
 
-ES的检索机制(query-then-fetch)  
+### 【ES概念、作用】
+
+### 【ES的检索机制(query-then-fetch)】  
