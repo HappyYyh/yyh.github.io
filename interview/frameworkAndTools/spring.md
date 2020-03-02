@@ -414,21 +414,232 @@ protected void inject(Object target, @Nullable String requestingBeanName, @Nulla
 
 ### 【如何自己设计IOC框架】   
 
+https://blog.csdn.net/qq_33829547/article/details/88186285
+
+一、定义注解
+
+@Repository、@Service、@Autowired和@Qualifier
+
+二、实现IOC功能
+
+1. 加载配置文件
+2. 扫描指定包下的.class文件
+3. 初始化IOC容器
+4. 装配Bean
+
+三、测试功能
+
 
 
 ## AOP
 
 ### 【Spring的AOP理解】
 
+**概念：**
+
+> AOP（Aspect Oriented Programming）,即面向切面编程，通过预编译方式和运行期动态代理实现程序功能的统一维护的一种技术。AOP是OOP（面向对象编程）的延续，是软件开发中的一个热点，也是Spring框架中的一个重要内容（Spring核心之一），是函数式编程的一种衍生范型。利用AOP可以对业务逻辑的各个部分进行隔离，从而使得业务逻辑各部分之间的耦合度降低，提高程序的可重用性，同时提高了开发的效率。
+
+**作用：**
+
+​	为了更清晰的逻辑，可以让你的业务逻辑去关注自己本身的业务，而不去想一些其他的事情，这些其他的事情包括：安全，事物，日志等。
+
+**术语：**
+
+1. **通知（Advice）**
+
+   就是你想要的功能，也就是上面说的安全，事务，日志等。你得先定义好把，然后在想用的地方用一下。
+
+2. **连接点（JoinPoint）**
+
+   这个更好解释了，就是spring允许你使用通知的地方，那可真就多了，基本每个方法的前，后（两者都有也行），或抛出异常时都可以是连接点，spring只支持方法连接点。其他如aspectJ还可以让你在构造器或属性注入时都行，不过那不是咱关注的，只要记住，和方法有关的前前后后（抛出异常），都是连接点。
+
+3. **切入点（Pointcut）**
+
+   上面说的连接点的基础上，来定义切入点，你的一个类里，有15个方法，那就有几十个连接点了对吧，但是你并不想在所有方法附近都使用通知（使用叫织入，以后再说），你只想让其中的几个，在调用这几个方法之前，之后或者抛出异常时干点什么，那么就用切点来定义这几个方法，让切点来筛选连接点，选中那几个你想要的方法。
+
+4. **切面（Aspect）**
+
+   切面是通知和切入点的结合。现在发现了吧，没连接点什么事情，连接点就是为了让你好理解切点，搞出来的，明白这个概念就行了。通知说明了干什么和什么时候干（什么时候通过方法名中的before，after，around等就能知道），而切入点说明了在哪干（指定到底是哪个方法），这就是一个完整的切面定义。
+
+5. **引入（introduction）**
+
+   允许我们向现有的类添加新方法属性。这不就是把切面（也就是新方法属性：通知定义的）用到目标类中嘛
+
+6. **目标（target）**
+
+   引入中所提到的目标类，也就是要被通知的对象，也就是真正的业务逻辑，他可以在毫不知情的情况下，被咱们织入切面。而自己专注于业务本身的逻辑。
+
+7. **代理(proxy)**
+
+   怎么实现整套AOP机制的，都是通过代理，这个一会给细说。
+
+8. **织入(weaving)**
+
+   把切面应用到目标对象来创建新的代理对象的过程。有3种方式，spring采用的是运行时，为什么是运行时，后面解释。
+
+　　关键就是：切点定义了哪些连接点会得到通知
+
+
+
 ### 【什么是静态代理和动态代理？它们的优缺点】  
+
+- **一：静态代理**
+
+  **概念：**
+
+
+  ​	静态代理是由程序员创建或工具生成代理类的源码，再编译代理类。
+
+  ​	所谓静态也就是在程序运行前就已经存在代理类的字节码文件，代理类和委托类的关系在运行前就确定了。
+
+  静态代理的优缺点
+
+  **优点：**
+
+  ​	业务类只需要关注业务逻辑本身，保证了业务类的重用性。这是代理模式的共有优点。
+
+  **缺点**：
+
+  1、代理对象的一个接口只服务于一种类型的对象，如果要代理的类型很多，势必要为每一种类型的方法都进行代理，静态代理在程序规模稍大时就无法胜任了。
+
+  2、如果接口增加一个方法，除了所有实现类需要实现这个方法外，所有代理类也需要实现此方法。显而易见，增加了代码维护的复杂度。
+
+- **二：动态代理**
+
+  **概念：**
+
+  ​	动态代理是在实现阶段不用关心代理类，而在运行阶段才指定哪一个对象。
+
+  ​	动态代理类的源码是在程序运行期间由JVM根据反射等机制动态的生成 。
+
+  ​    简单来说，动态代理就是交给程序去自动生成代理类。
+
+  **优点：**
+
+  ​	解决了静态代理的问题
+
+
 
 ### 【动态代理有几种实现方式】  
 
+- JDK动态代理
+- CGLIB动态代理
+
+
+
 ### 【JDK动态代理和CGLIB动态代理的区别】  
 
-哪种情况下用JDK动态代理，哪种情况下用CGLIB动态代理？   
+- **JDK动态代理**
 
-### 【AOP的底层实现原理吗】   
+  利用拦截器(拦截器必须实现`InvocationHanlder`)加上反射机制生成一个实现代理接口的匿名类，
+
+  在调用具体方法前调用InvokeHandler来处理。
+
+- **CGLIB动态代理**
+
+  利用`ASM`开源包，对代理对象类的class文件加载进来，通过修改其`字节码`生成子类来处理。
+
+  
+
+  #### **哪种情况下用JDK动态代理，哪种情况下用CGLIB动态代理？**   
+
+1.   如果目标对象实现了接口，默认情况下会采用JDK的动态代理实现AOP。
+
+2.   如果目标对象没有实现接口，会使用CGLIB实现AOP。
+
+3.   如果目标对象没有实现了接口，必须采用CGLIB库，Spring会自动在JDK动态代理和CGLIB之间转换。
+
+
+
+### 【AOP的底层实现原理】   
+
+以SpringBoot中AOP的自动配置为例，`AopAutoConfiguration`
+
+~~~java
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnClass({ EnableAspectJAutoProxy.class, Aspect.class, Advice.class, AnnotatedElement.class })
+@ConditionalOnProperty(prefix = "spring.aop", name = "auto", havingValue = "true", matchIfMissing = true)
+public class AopAutoConfiguration {
+
+	@Configuration(proxyBeanMethods = false)
+	@EnableAspectJAutoProxy(proxyTargetClass = false)
+	@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "false",
+			matchIfMissing = false)
+	public static class JdkDynamicAutoProxyConfiguration {
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	@EnableAspectJAutoProxy(proxyTargetClass = true)
+	@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "true",
+			matchIfMissing = true)
+	public static class CglibAutoProxyConfiguration {
+
+	}
+
+}
+~~~
+
+以`@ConditionalOnClass({ EnableAspectJAutoProxy.class, Aspect.class, Advice.class, AnnotatedElement.class })`往下找
+
+`AopProxy`
+
+```java
+
+	/**
+	 * Create a new proxy object.
+	 * <p>Uses the AopProxy's default class loader (if necessary for proxy creation):
+	 * usually, the thread context class loader.
+	 * @return the new proxy object (never {@code null})
+	 * @see Thread#getContextClassLoader()
+	 */
+	Object getProxy();
+
+	/**
+	 * Create a new proxy object.
+	 * <p>Uses the given class loader (if necessary for proxy creation).
+	 * {@code null} will simply be passed down and thus lead to the low-level
+	 * proxy facility's default, which is usually different from the default chosen
+	 * by the AopProxy implementation's {@link #getProxy()} method.
+	 * @param classLoader the class loader to create the proxy with
+	 * (or {@code null} for the low-level proxy facility's default)
+	 * @return the new proxy object (never {@code null})
+	 */
+	Object getProxy(@Nullable ClassLoader classLoader);
+```
+
+其实现类有两个，JdkDynamicAopProxy和CglibAopProxy，也就是JDK动态代理和Cglib动态代理
+
+~~~java
+// 精简了很多代码，但是并不影响主流程的学习
+public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    MethodInvocation invocation;
+    Object oldProxy = null;
+    boolean setProxyContext = false;
+    TargetSource targetSource = this.advised.targetSource;
+    Object target = null;
+    try {
+        target = targetSource.getTarget();
+        Class<?> targetClass = (target != null ? target.getClass() : null);
+        
+        List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+        // 1 获取增强器执行链
+        if (chain.isEmpty()) {
+            Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+            // 2 无增强器调用链，直接通过反射调用target 被代理对象的对应method方法
+            retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
+        }
+        else {
+              // 3 生成了新的MethodInvocation对象，开始执行增强器调用执行链
+            invocation = new ReflectiveMethodInvocation(proxy, target, method, args, targetClass, chain);
+            retVal = invocation.proceed();
+        }
+        return retVal;
+    }
+}
+~~~
+
+
 
 
 
@@ -436,9 +647,43 @@ protected void inject(Object target, @Nullable String requestingBeanName, @Nulla
 
 ### 【SpringMVC处理流程】
 
-  
+1. 用户发送请求至前端控制器DispatcherServlet
 
-### 【SpringMVC不同用户登录的信息怎么保证线程安全的】  
+2. DispatcherServlet收到请求调用HandlerMapping处理器映射器。
+
+3. 处理器映射器根据请求url找到具体的处理器，生成处理器对象及处理器拦截器(如果有则生成)一并返回给DispatcherServlet。
+
+4. DispatcherServlet通过HandlerAdapter处理器适配器调用处理器
+
+5. 执行处理器(Controller，也叫后端控制器)。
+
+6. Controller执行完成返回ModelAndView
+
+7. HandlerAdapter将controller执行结果ModelAndView返回给DispatcherServlet
+
+8. DispatcherServlet将ModelAndView传给ViewReslover视图解析器
+
+9. ViewReslover解析后返回具体View
+
+10. DispatcherServlet对View进行渲染视图（即将模型数据填充至视图中）。
+
+11. DispatcherServlet响应用户
+    
+
+  源码见[《SpringMVC执行流程》](/2020/01/16/SpringMVC执行流程.html)
+
+
+
+### 【SpringMVC不同用户登录的信息怎么保证线程安全的】 
+
+我们知道线程安全问题都是出现在**对成员变量的多线程写** 上；
+
+首先SpringMVC中一般Controller、service、DAO层的scope均是singleton，这样导致了两个结果：
+
+- 一是我们不用每次创建Controller；
+- 二是减少了对象创建和垃圾收集的时间；
+
+一般来说都是没有问题的，但是如果对成员变量进行多线程写还是会有问题的
 
 
 
@@ -446,15 +691,126 @@ protected void inject(Object target, @Nullable String requestingBeanName, @Nulla
 
 ### 【对SpringBoot的理解】
 
+**介绍：**
 
-  
+> Spring Boot开发始于 2013 年，伴随Spring4.0而生，2014 年 4 月发布 1.0.0 版本，是由Pivotal团队提供的全新框架，其设计目的是用来简化新Spring应用的初始搭建以及开发过程。
+>
+> 该框架使用了特定的方式来进行配置，从而使开发人员不再需要定义样板化的配置。
+>
+> Spring Boot 可以自动配置 Spring 的各种组件，并不依赖代码生成和 XML 配置文件。
 
-### 【SpringBoot的自动配置】   
 
-### 【SpringBoot注解和原理】 
 
- 
+### 【SpringBoot的自动配置原理】
 
-### 【SpringBoot定时任务 】
+1. SpringBoot启动的时候加载主配置类，开启了自动配置功能@EnableAutoConfiguration。
+
+   ~~~java
+   //main方法启动类
+   @SpringBootApplication
+   //开启自动配置
+   @EnableAutoConfiguration
+   public @interface SpringBootApplication {}
+   
+   //导入AutoConfigurationImportSelector这个类
+   @Import(AutoConfigurationImportSelector.class)
+   public @interface EnableAutoConfiguration {}
+   ~~~
+
+2. @EnableAutoConfiguration的作用是利用AutoConfigurationImportSelector给容器中导入一些组件。
+
+   ~~~java
+   @Override
+   public String[] selectImports(AnnotationMetadata annotationMetadata) {
+       if (!isEnabled(annotationMetadata)) {
+           return NO_IMPORTS;
+       }
+       AutoConfigurationMetadata autoConfigurationMetadata = 	AutoConfigurationMetadataLoader.loadMetadata(this.beanClassLoader);
+       
+       AutoConfigurationEntry autoConfigurationEntry = getAutoConfigurationEntry(autoConfigurationMetadata,                              annotationMetadata);
+       return StringUtils.toStringArray(autoConfigurationEntry.getConfigurations());
+   }
+   ~~~
+
+   `getAutoConfigurationEntry`这个方法会获取配置类
+
+3. 扫描所有jar包类路径下`"META-INF/spring.factories`"里面的类;   
+
+   ~~~java
+   protected AutoConfigurationEntry getAutoConfigurationEntry(AutoConfigurationMetadata autoConfigurationMetadata,
+   			AnnotationMetadata annotationMetadata) {
+   		if (!isEnabled(annotationMetadata)) {
+   			return EMPTY_ENTRY;
+   		}
+   		AnnotationAttributes attributes = getAttributes(annotationMetadata);
+   		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+   		configurations = removeDuplicates(configurations);
+   		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
+   		checkExcludedClasses(configurations, exclusions);
+   		configurations.removeAll(exclusions);
+   		configurations = filter(configurations, autoConfigurationMetadata);
+   		fireAutoConfigurationImportEvents(configurations, exclusions);
+   		return new AutoConfigurationEntry(configurations, exclusions);
+   	}
+   ~~~
+
+   把获取的String集合（配置项）和Set集合（排除项）封装成对象
+
+   ~~~java
+   protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
+   		List<String> configurations = SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(),
+   				getBeanClassLoader());
+   		Assert.notEmpty(configurations, "No auto configuration classes found in META-INF/spring.factories. If you "
+   				+ "are using a custom packaging, make sure that file is correct.");
+   		return configurations;
+   	}
+   ~~~
+
+   
+
+4. 这里类文件就是一个个的xxxAutoConfiguation,这些自动配置类会加载一些规则
+
+这样就完成了自动配置功能，具体看后续的springboot自动配置详解
+
+
+
+### 【SpringBoot定时任务】
+
+这篇[文章](https://www.cnblogs.com/mmzs/p/10161936.html)写的可以
+
+SpringBoot提供了对定时任务的封装，最简单的就是基于注解的使用
+
+1、开启定时任务
+
+~~~java
+@EnableScheduling
+~~~
+
+2、编写Cron表达式
+
+~~~java
+@Scheduled(cron = "0/5 * * * * ?")
+//或直接指定时间间隔，例如：5秒
+//@Scheduled(fixedRate=5000)
+private void configureTasks() {
+    System.err.println("执行静态定时任务时间: " + LocalDateTime.now());
+}
+~~~
+
+
 
 ### 【SpringMVC、Spring和SpringBoot的区别】  
+
+总体的关系是：SpringMVC -> SpringBoot -> Spring
+
+- **SpringMVC**
+
+  用于替代Structs2的Servlet框架
+
+- **SpringBoot**
+
+  用于简化XML配置的框架
+
+- **Spring**
+
+  Spring框架，包含framework、SpringBoot、SpringCloud等
