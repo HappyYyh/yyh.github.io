@@ -210,9 +210,15 @@ key: microservicesAndDistribution-start
 
 ### 【分布式追踪的上下文是怎么存储和传递的】
 
+​	ThreadLocal + spanId，当前节点的spanId作为下个节点的父spanId
+
+
+
 ### 【链路追踪的信息是怎么传递的】 
 
-  
+  RpcContext的attachment，说了Span的结构:parentSpanId + curSpanId
+
+
 
 ### 【ELK(日志分析系统)】
 
