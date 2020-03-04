@@ -51,3 +51,9 @@ rabbitmq的可靠性如何保证 ？
 
 RocketMQ的commitLog的作用    
 为什么commitLog每个文件的大小是1G？   
+
+
+
+【nameServer的作用】 
+
+【nameServer所有的节点数据是一致的吗】
