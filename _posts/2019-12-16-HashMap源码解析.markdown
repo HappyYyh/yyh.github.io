@@ -38,7 +38,7 @@ public V put(K key, V value) {
         return putVal(hash(key), key, value, false, true);
 }
 
-在进入putVal前会有一个hash(key)方法
+//在进入putVal前会有一个hash(key)方法
 static final int hash(Object key) {
     int h;
     //这里是根据hashCode方法再通过Hash算法的后两步运算（高位运算和取模运算）拿到hash值
@@ -309,9 +309,9 @@ remove过程：
 
 1、根据hash值找到链表
 
-- ​		头节点
-- ​		红黑树中找
-- ​		遍历链表
+- 头节点
+- 红黑树中找
+- 遍历链表
 
 2、找到值后删除节点
 
@@ -485,6 +485,8 @@ final Node<K,V>[] resize() {
 2、然后再将单链表转为双链表，方便之后的遍历和移动操作。
 
 而最终的操作，实际上是调用TreeNode的方法**treeify**进行的
+
+**TreeNode**继承了LinkedHashMap.**Entry**<K,V> 而LinkedHashMap.Entry<K,V> 继承了HashMap.Node<K,V>，所以TreeNode是**Node**的子类，所以可以相互转换
 
 ### treeify：树化
 
@@ -678,32 +680,90 @@ static int tieBreakOrder(Object a, Object b) {
 
 
 
-## 6、避免在多线程使用hashMap
+## 注意：避免在多线程使用HashMap
 
-因为线程不安全，比如如下：多线程扩容
+JDK1.8改进了JDK1.7transfer方法的问题(环形链表)，但任然存在线程安全问题：**数据覆盖**；
+
+观察如下代码：
+
+开启10000个线程，每个线程都执行put，最后判断size是否为10000
 
 ~~~java
-private static HashMap<Integer,String> map = new HashMap<Integer,String>(2，0.75f);  
-    public static void main(String[] args) {  
-        map.put(5, "C");
+public class HashMapTest extends Thread{
 
-        new Thread("Thread1") {
-            @Override
-            public void run() {
-                map.put(7, "B");
-                System.out.println(map);
-            };
-        }.start();
-        new Thread("Thread2") {
-            @Override
-            public void run() {
-                map.put(3, "A");
-                System.out.println(map);
-            };
-        }.start();       
-    }  
+    Map<String,String> map;
+    String name;
+    CountDownLatch countDownLatch;
+
+    public HashMapTest(Map<String,String> map, CountDownLatch countDownLatch,String name) {
+        this.countDownLatch = countDownLatch;
+        this.map = map;
+        this.name = name;
+    }
+
+    @Override
+    public void run() {
+        double i = Math.random() * 100000;
+        map.put("键" + i, "值" + i);
+        countDownLatch.countDown();
+        System.out.println(name + "当前时间：" + i + "   size = " + map.size());
+    }
+
+
+    public static void main(String[] args) throws InterruptedException {
+        Map<String,String> map = new HashMap<>();
+        CountDownLatch latch = new CountDownLatch(10000);
+        //Map<String, String> synchronizedMap = Collections.synchronizedMap(map);
+        for (int i = 0; i < 10000 ; i++) {
+            new HashMapTest(map,latch,"线程名字"+i).start();
+        }
+        //等其他线程执行完再执行主线程
+        latch.await();
+        System.out.println(" 最终大小 = " + map.size());
+    }
+}
 ~~~
 
-## 7、注意
+结果如下：
 
-**TreeNode**继承了LinkedHashMap.**Entry**<K,V> 而LinkedHashMap.Entry<K,V> 继承了HashMap.Node<K,V>，所以TreeNode是**Node**的子类，所以可以相互转换
+~~~
+线程名字9946当前时间：14770.971483566975   size = 9994
+线程名字9947当前时间：89182.42276052051   size = 9995
+线程名字9954当前时间：75847.03535176211   size = 9992
+线程名字9971当前时间：61257.867120768475   size = 9996
+线程名字9941当前时间：98514.38322780612   size = 9997
+线程名字9996当前时间：18612.550897362456   size = 9998
+ 最终大小 = 9998
+~~~
+
+可以看到，多线程下size并不为10000；
+
+看源码：
+
+~~~java
+public int size() {
+    return size;
+}
+transient int size;
+~~~
+
+首先size没有用volatile修饰，多线程下无法保证size变量的可见性；
+
+然后看putVal，问题就出现在++size上，多线程下由于 每个线程都在主存中拷贝size对象，然后进行写入，所以会造成多线程写问题。
+
+~~~java
+final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                   boolean evict) {
+    //..省略2
+    ++modCount;
+    if (++size > threshold)
+        resize();
+    afterNodeInsertion(evict);
+    return null;
+}
+~~~
+
+换成`Collections.synchronizedMap(map`)和`ConcurrentHashMap`则不会出现这个问题
+
+
+
