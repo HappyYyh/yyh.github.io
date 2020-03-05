@@ -66,9 +66,7 @@ logstash.yml
 
 ~~~yml
 http.host: "0.0.0.0"
-xpack.monitoring.elasticsearch.hosts: [ "http://47.99.53.114/9200" ]
-#xpack.monitoring.elasticsearch.username: admin
-#xpack.monitoring.elasticsearch.password: admin
+xpack.monitoring.elasticsearch.hosts: [ "http://ip/9200" ]
 ~~~
 
 logstash.conf
@@ -357,7 +355,8 @@ filebeat.inputs:
 
 ![filebeat-pathLog](http://image.yangyhao.top/blog/ELK%E6%90%AD%E5%BB%BA-filebeat-pathLog.png)
 
-
+> 注：这里面展示的不仅仅是inputs配置的日志，也包括modules开启的日志，比如下面配置的Nginx、RabbitMq等，可以自己点击搜索条件进行过滤。
+>
 
 
 
@@ -420,3 +419,72 @@ sudo vim nginx.yml
 
 ![filebeat-nginx](http://image.yangyhao.top/blog/ELK%E6%90%AD%E5%BB%BA-filebeat-nginx.png)
 
+
+
+
+
+#### 读取Redis日志
+
+~~~shell
+sudo filebeat moudles redis
+
+sudo vim /etc/filebeat/modules/redis.yml
+
+- module: redis
+  # Main logs
+  log:
+    enabled: true
+
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    var.paths: ["/var/log/redis/redis-server.log*"]
+
+  # Slow logs, retrieved via the Redis API (SLOWLOG)
+  slowlog:
+    enabled: true
+
+    # The Redis hosts to connect to.
+    var.hosts: ["ip:6379"]
+
+    # Optional, the password to use when connecting to Redis.
+    var.password: xx
+~~~
+
+打开kibana在dashboard里面搜索Redis，点击选中**[Filebeat Redis] Overview ECS**即可看到如下仪表盘：
+
+![filebeat-redis](http://image.yangyhao.top/blog/ELK%E6%90%AD%E5%BB%BA-filebeat-redis.png)
+
+
+
+#### 读取RabbitMQ日志
+
+~~~shell
+sudo filebeat moudles rabbitmq
+
+sudo vim /etc/filebeat/modules/rabbitmq.yml
+
+# Module: rabbitmq
+# Docs: https://www.elastic.co/guide/en/beats/filebeat/7.6/filebeat-module-rabbitmq.html
+
+- module: rabbitmq
+  # All logs
+  log:
+    enabled: true
+
+    # Set custom paths for the log files. If left empty,
+    # Filebeat will choose the paths depending on your OS.
+    var.paths: ["/var/log/rabbitmq/rabbit@localhost.log"]
+
+~~~
+
+由于kibana的dashboard里面搜索RabbitMq只出现了MetricBeat的内容，所以可以在`logs`按钮里查看日志
+
+在搜索框输入`event.dataset : "rabbitmq.log"`即可看到，如下：
+
+![filebeat-rabbitmq](http://image.yangyhao.top/blog/ELK%E6%90%AD%E5%BB%BA-filebeat-rabbitmq.png)
+
+
+
+## 总结
+
+上述只是简单的部署了ELK+Beat的使用，Elastic Stack的功能远不仅如此！
