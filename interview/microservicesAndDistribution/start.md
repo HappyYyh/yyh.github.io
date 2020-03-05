@@ -224,7 +224,7 @@ key: microservicesAndDistribution-start
 
 ​	ELK即Elastic Stack，是三种技术的名称首字母(ElasticSearch + Logstash + Kibana),具体可以看
 
-​	[《ELK部署》]()
+​	[《ELK部署》](/2020/03/05/ElasticStack环境部署.html)
 
 
 
