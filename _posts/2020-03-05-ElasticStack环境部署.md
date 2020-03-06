@@ -485,6 +485,15 @@ sudo vim /etc/filebeat/modules/rabbitmq.yml
 
 
 
+### 小结
+
+- Beats功能有些是互相重复的，比如FileBeat和MertricBeat都可以收集Postgresql、Nginx、Redis等日志，可以按需选择；
+- 上面展示的仅仅是beats常用的几个日志收集工具，更多应用的日志收集可以再/etc/xxxbeat/modules.d下查看，内容大多数都是大同小异；也可以参考[官方文档](https://www.elastic.co/guide/index.html)
+
+
+
 ## 总结
 
-上述只是简单的部署了ELK+Beat的使用，Elastic Stack的功能远不仅如此！
+上述只是简单的部署了ELK+Beat的使用，Elastic Stack的功能远不仅如此；
+
+上文是通过Beats直接输出到ElasticSearch中，也同样可以输出到Logstash中，在Logstash里面进行日志过滤后，再传入Es，不过由于Logstash消耗机器性能较大，并且Beats比较轻量简易，所以用beats直连Es；一般Logstash都是单独部署在一台服务器上，如果是机器比较多的情况下，可以连接Logstash使用；
