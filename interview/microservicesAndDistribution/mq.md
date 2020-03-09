@@ -200,42 +200,250 @@ key: microservicesAndDistribution-mq
 
 ## Kafka
 
-kafka有哪些组件  
-kafka两种消费模式  
-kafka怎么做有序消费  
-kafka的作用和架构  
-kafka 最早是为了解决什么问题设计的  
-kafka 网络中有哪些组件，为什么kafka 用zookeeper来存储metadata，而不是用db来存储  
-Kafka局部有序  
-kafka的replicas的作用，为什么比其他的消息队列好。  
-kafka中patiton如何保证有序  
-kafka 只有一次生产 只有一次消费怎么做  
-kafka如何保证不丢消息又不会重复消费。  
-kafka一致性  
-kafka相对于其他的优点   
-kafka 重消费解决  
-kafka如何保证可靠，高可用，幂等
-假设公司有上万人，一则通知要快速的推送到每个人，如何通过kafka来实现 ?  
+### 【Kafka最早是为了解决什么问题设计的】
+
+### 【Kafka有哪些组件】 
+
+1. **producer**
+
+   消息的生产者, 自己决定哪个 partions 中生产消息, 两种机制:hash 与 轮询    
+
+2. **consumer**
+
+   通过 zookeeper 进行维护消费者偏移量, consumer有自己的消费组,不同组之间维护同一个 topic 数据,互不影响.相同组的不同 consumer消费同一个 topic,这个 topic相同的数据只被消费一次   
+
+3. **broker**
+
+   broker 组成 kafka 集群的节点,之间没有主从关系, 依赖 zookeeper进行协调, broker 负责消息的读写与存储, 一个 broker可以管理读个 partions    
+
+4. **topic**
+
+   一类消息的总称/消息队里, topic是由 partions组成, 一个 topic 由多台 server 里的 partions 组成 
+
+5. **zookeeper** 
+
+   协调 kafka broker存储元数据, consumer的 offset+ broker 信息 +topic信息+ partions信息   
+
+6. **partions**
+
+   组成 topic 的单元, 每个 topic有副本(创建 topic 指定), 每个 partions 只能有有个 broker管理
+
+
+
+### 【Kafka两种消费模式】
+
+
+
+### 【Kafka的作用和架构】 
+
+### 【为什么Kafka用Zookeeper来存储Metadata，而不是用db来存储】  
+
+### 【Kafka怎么做有序消费】
+
+### 【Kafka局部有序】  
+
+### 【Kafka中patiton如何保证有序】
+
+### 【Kafka的replicas的作用，为什么比其他的消息队列好】  
+
+### 【Kafka只有一次生产 只有一次消费怎么做】 
+
+### 【Kafka如何保证不丢消息又不会重复消费】 
+
+### 【Kafka一致性】 
+
+### 【Kafka如何保证可靠，高可用，幂等】
+
+### 【假设公司有上万人，一则通知要快速的推送到每个人，如何通过Kafka来实现】  
 
 
 
 ## RabbitMQ
 
-对rabbitmq了解哪些？   
-rabbitmq消息队列如何解决消息丢失  
-rabbitmq和其他消息队列的对比   
-rabbitmq能避免发送重复数据吗？  
-rabbitmq的可靠性如何保证 ？  
+### 【RabbitMQ介绍】   
+
+**简介：**
+
+> **RabbitMQ**是实现了高级消息队列协议（AMQP）的开源消息代理软件（亦称面向消息的中间件）。RabbitMQ服务器是用[Erlang](https://baike.baidu.com/item/Erlang)语言编写的，而集群和故障转移是构建在[开放电信平台](https://baike.baidu.com/item/开放电信平台)框架上的。所有主要的编程语言均有与代理接口通讯的客户端[库](https://baike.baidu.com/item/库)。                                                                                    ——[百度百科](https://baike.baidu.com/item/rabbitmq/9372144?fr=aladdin)
+
+**核心概念：**
+
+- **ConnectionFactory**
+
+  Connection是RabbitMQ的socket链接，它封装了socket协议相关部分逻辑。
+
+- **Connection**
+
+  ConnectionFactory为Connection的制造工厂。
+
+- **Channel**
+
+  Channel是我们与RabbitMQ打交道的最重要的一个接口，我们大部分的业务操作是在Channel这个接口中完成的，包括定义Queue、定义Exchange、绑定Queue与Exchange、发布消息等。
+
+- **Queue**
+
+  Queue（队列）是RabbitMQ的内部对象；用于存储消息，生产者生产消息并**最终**投递到Queue中，消费者可以从Queue中获取消息并消费；多个消费者可以订阅同一个Queue，这时Queue中的消息会被平均分摊给多个消费者进行处理，而不是每个消费者都收到所有的消息并处理。
+
+- **Exchange**
+
+  exchange交换机，生产者将消息发送到Exchange，由Exchange将消息路由到一个或多个Queue中。
+
+  RabbitMQ常用的Exchange Type有**fanout、direct、topic、headers**这四种
+
+- **Routing key**
+
+  生产者在将消息发送给Exchange的时候，一般会指定一个routing key，来指定这个消息的路由规则，而这个routing key需要与Exchange Type及binding key联合使用才能最终生效。
+
+  在Exchange Type与binding key固定的情况下（在正常使用时一般这些内容都是固定配置好的），我们的生产者就可以在发送消息给Exchange时，通过指定routing key来决定消息流向哪里。
+
+  RabbitMQ为routing key设定的长度限制为**255** bytes。
+
+- **Binding**
+
+  RabbitMQ中通过Binding将Exchange与Queue关联起来，这样RabbitMQ就知道如何正确地将消息路由到指定的Queue了。
+
+
+
+### 【RabbitMQ消息队列如何解决消息丢失(可靠性)】
+
+- **生产者生产消息到RabbitMQ Server 可靠性保证**
+- **RabbitMQ Server中存储的消息如何保证**
+- **RabbitMQ Server到消费者消息如何不丢**  
+
+这题可以参照上面【MQ的可靠性怎么保证（处理消息丢失）】 ，其就是以RabbitMQ为例
+
+
+
+### 【RabbitMQ能避免发送重复数据吗】
+
+​	ack机制能保证消息发送的可靠性，但是无法保证发送数据的内容是否重复
 
 
 
 ## RocketMQ
 
-RocketMQ的commitLog的作用    
-为什么commitLog每个文件的大小是1G？   
+### 【RocketMQ介绍】
+
+**简介：**
+
+> RocketMQ作为一款纯java、分布式、队列模型的开源消息中间件，支持事务消息、顺序消息、批量消息、定时消息、消息回溯等。
+
+**特点：**
+
+- 支持发布/订阅（Pub/Sub）和点对点（P2P）消息模型
+- 在一个队列中可靠的先进先出（FIFO）和严格的顺序传递 （RocketMQ可以保证严格的消息顺序，而ActiveMQ无法保证）
+- 支持拉（pull）和推（push）两种消息模式 （Push好理解，比如在消费者端设置Listener回调；而Pull，控制权在于应用，即应用需要主动的调用拉消息方法从Broker获取消息，这里面存在一个消费位置记录的问题（如果不记录，会导致消息重复消费））
+- 单一队列百万消息的堆积能力       （RocketMQ提供亿级消息的堆积能力，这不是重点，重点是堆积了亿级的消息后，依然保持写入低延迟）
+- 支持多种消息协议，如 JMS、MQTT 等
+- 分布式高可用的部署架构,满足至少一次消息传递语义    （RocketMQ原生就是支持分布式的，而ActiveMQ原生存在单点性）
+- 提供 docker 镜像用于隔离测试和云集群部署
+- 提供配置、指标和监控等功能丰富的 Dashboard
+
+**核心概念：**
+
+- **Producer**
+
+  消息生产者，生产者的作用就是将消息发送到 MQ，生产者本身既可以产生消息，如读取文本信息等。也可以对外提供接口，由外部应用来调用接口，再由生产者将收到的消息发送到 MQ。
+
+- **Producer Group**
+
+  生产者组，简单来说就是多个发送同一类消息的生产者称之为一个生产者组。在这里可以不用关心，只要知道有这么一个概念即可。
+
+- **Consumer**
+
+  消息消费者，简单来说，消费 MQ 上的消息的应用程序就是消费者，至于消息是否进行逻辑处理，还是直接存储到数据库等取决于业务需要。
+
+- **Consumer Group**
+
+  消费者组，和生产者类似，消费同一类消息的多个 consumer 实例组成一个消费者组。
+
+- **Topic**
+
+  Topic 是一种消息的逻辑分类，比如说你有订单类的消息，也有库存类的消息，那么就需要进行分类，一个是订单 Topic 存放订单相关的消息，一个是库存 Topic 存储库存相关的消息。
+
+- **Message**
+
+  Message 是消息的载体。一个 Message 必须指定 topic，相当于寄信的地址。Message 还有一个可选的 tag 设置，以便消费端可以基于 tag 进行过滤消息。也可以添加额外的键值对，例如你需要一个业务 key 来查找 broker 上的消息，方便在开发过程中诊断问题。
+
+- **Tag**
+
+  标签可以被认为是对 Topic 进一步细化。一般在相同业务模块中通过引入标签来标记不同用途的消息。
+
+- **Broker**
+
+  Broker 是 RocketMQ 系统的主要角色，其实就是前面一直说的 MQ。Broker 接收来自生产者的消息，储存以及为消费者拉取消息的请求做好准备。
+
+- **Name Server**
+
+  Name Server 为 producer 和 consumer 提供路由信息。
 
 
 
-【nameServer的作用】 
+### 【RocketMQ的commitLog的作用】
 
-【nameServer所有的节点数据是一致的吗】
+对于`RoceketMQ`而言，所有的消息最终都需要被持久化到`CommitLog`文件中。
+
+- **存储地址**
+
+  $HOME\store\commitlog\${fileName}；
+
+- **文件大小**
+
+  默认1G =1024×1024×1024
+
+- **文件名**
+
+  名字长度为20位，左边补零，剩余为起始偏移量；
+
+  比如00000000000000000000代表了第一个文件，起始偏移量为0，文件大小为1G=1073741824；
+
+  当这个文件满了，第二个文件名字为00000000001073741824，起始偏移量为1073741824，
+
+  以此类推，第三个文件名字为00000000002147483648，起始偏移量为2147483648。
+
+**消息存储的时候会顺序写入文件，当文件满了，写入下一个文件。**
+
+CommitLog源码：
+
+~~~java
+// commitlog构造器
+public CommitLog(final DefaultMessageStore defaultMessageStore) {
+    this.mappedFileQueue = new MappedFileQueue(defaultMessageStore.getMessageStoreConfig().getStorePathCommitLog(),
+        defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog(), defaultMessageStore.getAllocateMappedFileService());// 创建mapperFileQueue
+    this.defaultMessageStore = defaultMessageStore;
+    // 刷盘对象线程
+    if (FlushDiskType.SYNC_FLUSH == defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
+        this.flushCommitLogService = new GroupCommitService();
+    } else {
+        this.flushCommitLogService = new FlushRealTimeService();
+    }
+    // 提交
+    this.commitLogService = new CommitRealTimeService();
+    // append消息回调（描述的是将消息在文件末尾不断的append上去）
+    this.appendMessageCallback = new DefaultAppendMessageCallback(defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());
+    batchEncoderThreadLocal = new ThreadLocal<MessageExtBatchEncoder>() {
+        @Override
+        protected MessageExtBatchEncoder initialValue() {
+            return new MessageExtBatchEncoder(defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());
+        }
+    };
+    // 消息写入锁
+    this.putMessageLock = defaultMessageStore.getMessageStoreConfig().isUseReentrantLockWhenPutMessage() ? new PutMessageReentrantLock() : new PutMessageSpinLock();
+}
+~~~
+
+
+
+### 【为什么commitLog每个文件的大小是1G】   
+
+
+
+### 【NameServer的作用】 
+
+- **NameServer用来保存活跃的broker列表，包括Master和Slave**
+- **NameServer用来保存所有topic和该topic所有队列的列表**
+- **NameServer用来保存所有broker的Filter列表**
+
+
+
+### 【NameServer所有的节点数据是一致的吗】
