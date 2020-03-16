@@ -391,25 +391,27 @@ public synchronized V put(K key, V value) {
 
 ### 【ConcurrentHashMap各版本（JDK1.7和1.8）的差异】
 
-
-
 在JDK1.7中ConcurrentHashMap采用了**数组+Segment+分段锁**的方式实现。   
 
 JDK8中ConcurrentHashMap参考了JDK8 HashMap的实现，采用了**数组+链表+红黑树**的实现方式来设计，**内部大量采用CAS操作 ** 
 
 **1.数据结构**：取消了Segment分段锁的数据结构，取而代之的是数组+链表+红黑树的结构。  
+
 **2.保证线程安全机制**：JDK1.7采用segment的分段锁机制实现线程安全，其中segment继承自ReentrantLock。JDK1.8采用CAS+Synchronized保证线程安全。  
+
 **3.锁的粒度**：原来是对需要进行数据操作的Segment加锁，现调整为对每个数组元素加锁（Node）。  
+
 **4.链表转化为红黑树**:定位结点的hash算法简化会带来弊端,Hash冲突加剧,因此在链表节点数量大于8时，会将链表转化为红黑树进行存储。  
+
 **5.查询时间复杂度**：从原来的遍历链表O(n)，变成遍历红黑树O(logN)  
 
 
 
 ### 【jdk1.8对ConcurrentHashMap做了哪些优化】  
 
-1、取消了segment字段，直接采用transient volatile HashEntry[] table保存数据，采用table数组元素作为锁，从而实现了对每一行数据进行加锁，进一步减少并发冲突的概率   
+1、取消了segment字段，直接采用`transient volatile HashEntry[] table`保存数据，采用table数组元素作为锁，从而实现了对每一行数据进行加锁，进一步减少并发冲突的概率   
 
-2、将原先table数组＋单向链表的数据结构，变更为table数组＋单向链表＋红黑树的结构，查询时时间复杂度由O(n)提升到O(logn),提高性能
+2、将原先table数组＋单向链表的数据结构，变更为table**数组＋单向链表＋红黑树**的结构，查询时间复杂度由O(n)提升到O(logn),提高性能
 
 
 
@@ -445,7 +447,7 @@ JDK1.8中，在ConcurrentHashmap进行扩容时，其他线程可以通过检测
 
 
 
-### 【concurrentHashMap1.8为什么放弃了分段锁】 
+### 【ConcurrentHashMap1.8为什么放弃了分段锁】 
 
 **Segment**继承了重入锁**ReentrantLock**，有了锁的功能，每个锁控制的是一段，当每个Segment越来越大时，锁的粒度就变得有些大了。
 
@@ -456,19 +458,25 @@ JDK1.8中，在ConcurrentHashmap进行扩容时，其他线程可以通过检测
 
 为什么是synchronized，而不是可重入锁
 1. 减少内存开销  
-假设使用可重入锁来获得同步支持，那么每个节点都需要通过继承AQS来获得同步支持。但并不是每个节点都需要获得同步支持的，只有链表的头节点（红黑树的根节点）需要同步，这无疑带来了巨大内存浪费。
-2. 获得JVM的支持  
-可重入锁毕竟是API这个级别的，后续的性能优化空间很小。  
-synchronized则是JVM直接支持的，JVM能够在运行时作出相应的优化措施：锁粗化、锁消除、锁自旋等等。这就使得synchronized能够随着JDK版本的升级而不改动代码的前提下获得性能上的提升。  
+
+  假设使用可重入锁来获得同步支持，那么每个节点都需要通过继承AQS来获得同步支持。但并不是每个节点都需要获得同步支持的，只有链表的头节点（红黑树的根节点）需要同步，这无疑带来了巨大内存浪费。
+
+2. 获得JVM的支持 
+
+  可重入锁毕竟是API这个级别的，后续的性能优化空间很小。  
+
+  synchronized则是JVM直接支持的，JVM能够在运行时作出相应的优化措施：锁粗化、锁消除、锁自旋等等。这就使得synchronized能够随着JDK版本的升级而不改动代码的前提下获得性能上的提升。  
 
 
-### 【concurrentHashMap默认桶数量，多线程写时冲突概率】  
+### 【ConcurrentHashMap默认桶数量，多线程写时冲突概率】  
 
 ​	16
 
 ### 【ConcurrentHashMap怎么实现线程安全的】 
 
-  利用CAS+Synchronized
+  利用**CAS+Synchronized**
+
+
 
 ## **TreeMap**
 
@@ -519,15 +527,19 @@ TreeMap中的元素默认按照keys的自然排序排列,其存储结构是红�
 
 
 - **List(有序,可重复) ** 
-              **ArrayList**  
-                  底层数据结构是数组,查询快,增删慢  
-                  线程不安全,效率高  
-              **Vector**  
-                  底层数据结构是数组,查询快,增删慢  
-                  线程安全,效率低  
-              **LinkedList ** 
-                  底层数据结构是链表,查询慢,增删快  
-                  线程不安全,效率高    
+          
+          ​    **ArrayList**  
+          
+          ​        底层数据结构是数组,查询快,增删慢  
+          ​        线程不安全,效率高  
+          ​    **Vector** 
+          
+          ​        底层数据结构是数组,查询快,增删慢  
+          ​        线程安全,效率低  
+          ​    **LinkedList ** 
+          ​        底层数据结构是链表,查询慢,增删快  
+          ​        线程不安全,效率高    
+          
 - **Set(无序,唯一)**
               **HashSet**  
                   底层数据结构是哈希表。             
@@ -543,6 +555,7 @@ TreeMap中的元素默认按照keys的自然排序排列,其存储结构是红�
                               让元素所属的类实现Comparable接口  
                           比较器排序(集合具备比较性)  
                               让集合接收一个Comparator的实现类对象  
+          
 - **Map(双列集合)**
           注：Map集合的数据结构仅仅针对键有效，与值无关。存储的是键值对形式的元素，键唯一，值可重复。        
           **HashMap**  

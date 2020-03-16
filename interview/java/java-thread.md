@@ -69,40 +69,41 @@ key: java-thread
 
 1. 一个线程可以多个协程，一个进程也可以单独拥有多个协程。
 2. 线程进程都是同步机制，而协程则是异步。
-
 3. 协程能保留上一次调用时的状态，每次过程重入时，就相当于进入上一次调用的状态。
-
 4. 线程是抢占式，而协程是非抢占式的，所以需要用户自己释放使用权来切换到其他协程，因此同一时间其实只有一个协程拥有运行权，相当于单线程的能力。
-
 5. 协程并不是取代线程, 而且抽象于线程之上, 线程是被分割的CPU资源, 协程是组织好的代码流程, 协程需要线程来承载运行, 线程是协程的资源, 但协程不会直接使用线程, 协程直接利用的是执行器(Interceptor), 执行器可以关联任意线程或线程池, 可以使当前线程, UI线程, 或新建新程.。
-
 6. 线程是协程的资源。协程通过Interceptor来间接使用线程这个资源。
-   
+
+
 
 
 ### 【线程的状态】
 
-  **1. 新建状态(New):** 
+1.   **新建状态(New):** 
 
-​      线程对象被创建后，就进入了新建状态。例如，Thread thread = new Thread()。
+   线程对象被创建后，就进入了新建状态。例如，Thread thread = new Thread()。
 
-  **2. 就绪状态(Runnable):** 
+2.   **就绪状态(Runnable):** 
 
-​     也被称为“可执行状态”。线程对象被创建后，其它线程调用了该对象的start()方法，从而来启动该线程。例如，thread.start()。处于就绪状态的线程，随时可能被CPU调度执行。
+   也被称为“可执行状态”。线程对象被创建后，其它线程调用了该对象的start()方法，从而来启动该线程。例如，thread.start()。处于就绪状态的线程，随时可能被CPU调度执行。
 
-  **3. 运行状态(Running):** 
+3.   **运行状态(Running):** 
 
-​     线程获取CPU权限进行执行。需要注意的是，线程只能从就绪状态进入到运行状态。
+   线程获取CPU权限进行执行。需要注意的是，线程只能从就绪状态进入到运行状态。
 
-  **4. 阻塞状态(Blocked):** 
+4.   **阻塞状态(Blocked):** 
 
-​     阻塞状态是线程因为某种原因放弃CPU使用权，暂时停止运行。直到线程进入就绪状态，才有机会转到运行状态。阻塞的情况分三种：
+   阻塞状态是线程因为某种原因放弃CPU使用权，暂时停止运行。直到线程进入就绪状态，才有机会转到运行状态。阻塞的情况分三种：
 
-- (01) 等待阻塞 -- 通过调用线程的wait()方法，让线程等待某工作的完成。
-- (02) 同步阻塞 -- 线程在获取synchronized同步锁失败(因为锁被其它线程所占用)，它会进入同步阻塞状态。
-- (03) 其他阻塞 -- 通过调用线程的sleep()或join()或发出了I/O请求时，线程会进入到阻塞状态。当sleep()状态超时、join()等待线程终止或者超时、或者I/O处理完毕时，线程重新转入就绪状态。
+      - 等待阻塞 -- 通过调用线程的wait()方法，让线程等待某工作的完成。
 
-  **5. 死亡状态(Dead):** 线程执行完了或者因异常退出了run()方法，该线程结束生命周期。
+      - 同步阻塞 -- 线程在获取synchronized同步锁失败(因为锁被其它线程所占用)，它会进入同步阻塞状态。
+
+      - 其他阻塞 -- 通过调用线程的sleep()或join()或发出了I/O请求时，线程会进入到阻塞状态。当sleep()状态超时、join()等待线程终止或者超时、或者I/O处理完毕时，线程重新转入就绪状态。
+
+6.   **死亡状态(Dead):** 
+
+​		线程执行完了或者因异常退出了run()方法，该线程结束生命周期。
 
 
 
@@ -169,7 +170,7 @@ public class TestOne {
 
 ​	属于Obejct类
 
-​	原因：Java提供的锁是对象级的而不是线程级的，每个对象都有锁，通过线程获得。简单的说，由于wait，notify，notifyAll都是锁级别的操作，所以把他们定义在object类中因为锁属于对象。
+​	**原因**：Java提供的锁是对象级的而不是线程级的，每个对象都有锁，通过线程获得。简单的说，由于wait，notify，notifyAll都是锁级别的操作，所以把他们定义在object类中因为锁属于对象。
 
 
 
@@ -183,7 +184,7 @@ public class TestOne {
 
    
 
-### 【Runnable和callable区别】
+### 【Runnable和Callable区别】
 
 ​	callable相比于runnable可以有返回值，也可以手动抛出异常
 
@@ -210,22 +211,46 @@ public class TestOne {
 
 ### 【线程不安全的例子，如何解决】  
 
-这个代码多线程下修改同一个变量肯定会有问题，使用AtomicInteger
+这个代码多线程下修改同一个变量肯定会有问题，使用synchronized修饰sell方法即可
 
 ~~~java
-public class UserStat {
-    int userCount;
-    public int getUserCount() {
-        return userCount;
-    }
-    public void increment() {
-        userCount++;
-    }
-    public void decrement() {
-        userCount--;
+public class SyncTest{
+
+    public static void main(String[] args) {
+        Ticket ticket = new Ticket();
+        new Thread(ticket,"线程1").start();
+        new Thread(ticket,"线程2").start();
+        new Thread(ticket,"线程3").start();
     }
 }
 
+class Ticket implements Runnable{
+
+    int ticket = 100;
+
+    @Override
+    public void run() {
+        while (true){
+            try {
+                //模拟网络延迟
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            if (ticket > 0) {
+                // this表示Ticket对象
+                sell();
+            }else {
+                break;
+            }
+        }
+    }
+
+    public void sell(){
+        System.out.println(Thread.currentThread().getName() + "售票，票号为：" + ticket--);
+    }
+
+}
 ~~~
 
 
@@ -341,16 +366,14 @@ public ThreadPoolExecutor(int corePoolSize,      //核心线程数
                           TimeUnit unit,         //时间单位
                           BlockingQueue<Runnable> workQueue, //存放任务的队列
                           ThreadFactory threadFactory, //线程工厂
-                          RejectedExecutionHandler handler  //超出线程范围和队列容量的任务的处理程序
+                          RejectedExecutionHandler handler//超出线程范围和队列容量的任务处理程序
                          )
-
-
 ~~~
 
-   1）当池子大小小于corePoolSize就新建线程，并处理请求   
-   2）当池子大小等于corePoolSize，把请求放入workQueue中，池子里的空闲线程就去从workQueue中取任务并处理  
-   3）当workQueue放不下新入的任务时，新建线程入池，并处理请求，如果池子大小撑到了maximumPoolSize就用RejectedExecutionHandler来做拒绝处理  
-   4）另外，当池子的线程数大于corePoolSize的时候，多余的线程会等待keepAliveTime长的时间，如果无请求可处理就自行销毁  
+1. 当池子大小小于corePoolSize就新建线程，并处理请求   
+2. 当池子大小等于corePoolSize，把请求放入workQueue中，池子里的空闲线程就去从workQueue中取任务并处理  
+3. 当workQueue放不下新入的任务时，新建线程入池，并处理请求，如果池子大小撑到了maximumPoolSize就用RejectedExecutionHandler来做拒绝处理  
+4. 另外，当池子的线程数大于corePoolSize的时候，多余的线程会等待keepAliveTime长的时间，如果无请求可处理就自行销毁  
 
 
 
@@ -443,7 +466,7 @@ ExecutorService executorService = Executors.newSingleThreadExecutor();//单个�
 
 ### 【如何定义自己的拒绝策略】 
 
-​	手动创建线程池的最后一个参数就是拒绝策略，如果不适用提供好的，可以利用匿名内部类实现：
+​	手动创建线程池的最后一个参数就是拒绝策略，如果不使用提供好的，可以利用匿名内部类实现：
 
 ~~~java
 new RejectedExecutionHandler(){
@@ -499,9 +522,9 @@ new RejectedExecutionHandler(){
 
 ​	主要分两种场景：主线程仍然对ThreadLocal有引用和主线程不存在对ThreadLocal的引用。
 
-1. ​	第一种场景因为主线程仍然在运行，所以还是有对ThreadLocal的引用，那么ThreadLocal变量的引用和value是不会被回收的。
+1. 第一种场景因为主线程仍然在运行，所以还是有对ThreadLocal的引用，那么ThreadLocal变量的引用和value是不会被回收的。
 
-2. ​	第二种场景虽然主线程不存在对ThreadLocal的引用，且该引用是弱引用，所以会在gc的时候被回收，但是对用的value不是弱引用，不会被内存回收，仍然会造成内存泄漏
+2. 第二种场景虽然主线程不存在对ThreadLocal的引用，且该引用是弱引用，所以会在gc的时候被回收，但是对用的value不是弱引用，不会被内存回收，仍然会造成内存泄漏
 
    
 
@@ -756,10 +779,11 @@ public class Provider {
 
 #### **公平锁/非公平锁**
 
-**公平锁**是指多个线程按照申请锁的顺序来获取锁。  
-**非公平锁**是指多个线程获取锁的顺序并不是按照申请锁的顺序，有可能后申请的线程比先申请的线程优先获取锁。有可能，会造成优先级反转或者饥饿现象。  
+- **公平锁**是指多个线程按照申请锁的顺序来获取锁。  
+- **非公平锁**是指多个线程获取锁的顺序并不是按照申请锁的顺序，有可能后申请的线程比先申请的线程优先获取锁。有可能，会造成优先级反转或者饥饿现象。  
 
 对于Java `ReentrantLock`而言，通过构造函数指定该锁是否是公平锁，默认是非公平锁。非公平锁的优点在于吞吐量比公平锁大。  
+
 对于`Synchronized`而言，也是一种非公平锁。由于其并不像`ReentrantLock`是通过AQS的来实现线程调度，所以并没有任何办法使其变成公平锁。
 
 
@@ -787,12 +811,15 @@ synchronized void setB() throws Exception{
 
 #### **独享锁/共享锁**
 
-**独享锁**是指该锁一次只能被一个线程所持有。
-**共享锁**是指该锁可被多个线程所持有。
+- **独享锁**是指该锁一次只能被一个线程所持有。
+- **共享锁**是指该锁可被多个线程所持有。
 
 对于Java `ReentrantLock`而言，其是独享锁。但是对于Lock的另一个实现类`ReadWriteLock`，其读锁是共享锁，其写锁是独享锁。  
+
 读锁的共享锁可保证并发读是非常高效的，读写，写读 ，写写的过程是互斥的。  
+
 独享锁与共享锁也是通过AQS来实现的，通过实现不同的方法，来实现独享或者共享。  
+
 对于`Synchronized`而言，当然是独享锁。     
 
 
@@ -800,8 +827,9 @@ synchronized void setB() throws Exception{
 #### **互斥锁/读写锁**
 
 上面讲的独享锁/共享锁就是一种广义的说法，互斥锁/读写锁就是具体的实现。  
-**互斥锁**在Java中的具体实现就是`ReentrantLock`
-**读写锁**在Java中的具体实现就是`ReadWriteLock`
+
+- **互斥锁**在Java中的具体实现就是`ReentrantLock`
+- **读写锁**在Java中的具体实现就是`ReadWriteLock`
 
 
 
@@ -809,13 +837,14 @@ synchronized void setB() throws Exception{
 
 乐观锁与悲观锁不是指具体的什么类型的锁，而是指看待并发同步的角度。
 
-**悲观锁**认为对于同一个数据的并发操作，一定是会发生修改的，哪怕没有修改，也会认为修改。因此对于同一个数据的并发操作，悲观锁采取加锁的形式。悲观的认为，不加锁的并发操作一定会出问题。
+- **悲观锁**认为对于同一个数据的并发操作，一定是会发生修改的，哪怕没有修改，也会认为修改。因此对于同一个数据的并发操作，悲观锁采取加锁的形式。悲观的认为，不加锁的并发操作一定会出问题。
 
-**乐观锁**则认为对于同一个数据的并发操作，是不会发生修改的。在更新数据的时候，会采用尝试更新，不断重新的方式更新数据。乐观的认为，不加锁的并发操作是没有事情的。
+- **乐观锁**则认为对于同一个数据的并发操作，是不会发生修改的。在更新数据的时候，会采用尝试更新，不断重新的方式更新数据。乐观的认为，不加锁的并发操作是没有事情的。
 
 从上面的描述我们可以看出，悲观锁适合写操作非常多的场景，乐观锁适合读操作非常多的场景，不加锁会带来大量的性能提升。
 
 悲观锁在Java中的使用，就是利用各种锁**Synchronize/Lock**。
+
 乐观锁在Java中的使用，是无锁编程，常常采用的是**CAS**算法，典型的例子就是原子类，通过CAS自旋实现原子操作的更新。
 
 
@@ -836,9 +865,9 @@ synchronized void setB() throws Exception{
 
 这三种锁是指锁的状态，并且是针对`Synchronized`。在Java 5通过引入锁升级的机制来实现高效`Synchronized`。这三种锁的状态是通过**对象监视器**在对象头中的字段来表明的。
 
-**偏向锁**是指一段同步代码一直被一个线程所访问，那么该线程会自动获取锁。降低获取锁的代价。  
-**轻量级**锁是指当锁是偏向锁的时候，被另一个线程所访问，偏向锁就会升级为轻量级锁，其他线程会通过自旋的形式尝试获取锁，不会阻塞，提高性能。  
-**重量级**锁是指当锁为轻量级锁的时候，另一个线程虽然是自旋，但自旋不会一直持续下去，当自旋一定次数的时候，还没有获取到锁，就会进入阻塞，该锁膨胀为重量级锁。重量级锁会让其他申请的线程进入阻塞，性能降低。
+- **偏向锁**是指一段同步代码一直被一个线程所访问，那么该线程会自动获取锁。降低获取锁的代价。  
+- **轻量级**锁是指当锁是偏向锁的时候，被另一个线程所访问，偏向锁就会升级为轻量级锁，其他线程会通过自旋的形式尝试获取锁，不会阻塞，提高性能。 
+- **重量级**锁是指当锁为轻量级锁的时候，另一个线程虽然是自旋，但自旋不会一直持续下去，当自旋一定次数的时候，还没有获取到锁，就会进入阻塞，该锁膨胀为重量级锁。重量级锁会让其他申请的线程进入阻塞，性能降低。
 
 
 
@@ -883,29 +912,28 @@ public class SpinLock {
 
 ### 【乐观/悲观锁在Java和MySQL分别是怎么实现的】
 
-**Mysql**
+- **Mysql**
 
-​	乐观锁实现：
+  - 乐观锁实现：
 
-​	利用数据库版本（version）实现，一般是通过为数据库表增加一个数字类型的 “version” 字段，当我们提交更新的时候，判断数据库表对应记录的当前版本信息与第一次取出来的version值进行比对，如果数据库表当前版本号与第一次取出来的version值相等，则予以更新，否则认为是过期数据   
+     利用数据库版本（version）实现，一般是通过为数据库表增加一个数字类型的 “version” 字段，当我们提交更新的时候，判断数据库表对应记录的当前版本信息与第一次取出来的version值进行比对，如果数据库表当前版本号与第一次取出来的version值相等，则予以更新，否则认为是过期数据   
 
-​	悲观锁实现：
+  - 悲观锁实现：
 
-​	注：要使用悲观锁，我们必须关闭mysql数据库的自动提交属性，因为MySQL默认使用autocommit模式，也就是说，当你执行一个更新操作后，MySQL会立刻将结果进行提交。
+    注：要使用悲观锁，我们必须关闭mysql数据库的自动提交属性，因为MySQL默认使用autocommit模式，也就是说，当你执行一个更新操作后，MySQL会立刻将结果进行提交。
 
-​	一般都是select xxx for update，之后数据就被锁定了，其它的事务必须等本次事务提交之后才能执行
+  ​	一般都是select xxx for update，之后数据就被锁定了，其它的事务必须等本次事务提交之后才能执行
 
-~~~sql
-select status from t_goods where id=1 for update;
-~~~
+  ~~~sql
+  select status from t_goods where id=1 for update;
+  ~~~
 
+- **Java**
 
+  - 	乐观锁实现：CAS和原子类
 
-**Java**
+  - 	悲观锁实现：Synchronize和Lock
 
-​	乐观锁实现：CAS和原子类
-
-​	悲观锁实现：Synchronize和Lock
 
 
 
@@ -921,37 +949,37 @@ public ReentrantLock(boolean fair) {
 
 ~~~java
 static final class FairSync extends Sync {
-        private static final long serialVersionUID = -3000897897090466540L;
+    private static final long serialVersionUID = -3000897897090466540L;
 
-        final void lock() {
-            acquire(1);
-        }
+    final void lock() {
+        acquire(1);
+    }
 
-        /**
+    /**
          * Fair version of tryAcquire.  Don't grant access unless
          * recursive call or no waiters or is first.
          */
-        protected final boolean tryAcquire(int acquires) {
-            final Thread current = Thread.currentThread();
-            int c = getState();
-            //拿到当前的同步状态, 如果是无锁状态， 则进行hasQueuedPredecessors方法逻辑
-            if (c == 0) {
-                if (!hasQueuedPredecessors() &&
-                    compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-            }
-            else if (current == getExclusiveOwnerThread()) {
-                int nextc = c + acquires;
-                if (nextc < 0)
-                    throw new Error("Maximum lock count exceeded");
-                setState(nextc);
+    protected final boolean tryAcquire(int acquires) {
+        final Thread current = Thread.currentThread();
+        int c = getState();
+        //拿到当前的同步状态, 如果是无锁状态， 则进行hasQueuedPredecessors方法逻辑
+        if (c == 0) {
+            if (!hasQueuedPredecessors() &&
+                compareAndSetState(0, acquires)) {
+                setExclusiveOwnerThread(current);
                 return true;
             }
-            return false;
         }
+        else if (current == getExclusiveOwnerThread()) {
+            int nextc = c + acquires;
+            if (nextc < 0)
+                throw new Error("Maximum lock count exceeded");
+            setState(nextc);
+            return true;
+        }
+        return false;
     }
+}
 ~~~
 
 
@@ -1002,27 +1030,24 @@ static final class FairSync extends Sync {
 
 ### 【加锁的静态方法和普通方法区别】
 
-结论：
+**结论**：
 
 `static synchronized`是**类锁**，`synchronized`是**对象锁**。
 
+**区别：**
 
-
-**对象锁**（又称实例锁，`synchronized`）：该锁针对的是该实例对象（当前对象）。
- `synchronized`是对类的**当前实例（当前对象）**进行加锁，防止其他线程同时访问该类的**该实例的所有synchronized块**，注意这里是“类的当前实例”， 类的两个不同实例就没有这种约束了。
-**每个对象都有一个锁，且是唯一的**。
-
-
-
-**类锁**（又称全局锁，`static synchronized`）：该锁针对的是类，无论**实例**出多少个**对象**，那么线程依然共享该锁。 `static synchronized`是限制多线程中该类的所有实例同时访问该类**所对应的代码块**。（`实例.fun`实际上相当于`class.fun`）
+- **对象锁**（又称实例锁，`synchronized`）：该锁针对的是该实例对象（当前对象）。
+   `synchronized`是对类的**当前实例（当前对象）**进行加锁，防止其他线程同时访问该类的**该实例的所有synchronized块**，注意这里是“类的当前实例”， 类的两个不同实例就没有这种约束了。
+  **每个对象都有一个锁，且是唯一的**。
+- **类锁**（又称全局锁，`static synchronized`）：该锁针对的是类，无论**实例**出多少个**对象**，那么线程依然共享该锁。 `static synchronized`是限制多线程中该类的所有实例同时访问该类**所对应的代码块**。（`实例.fun`实际上相当于`class.fun`）
 
 
 
 ### 【栅栏和闭锁的区别】  
 
-1. ​	**闭锁**用来等待事件，就是说闭锁用来等待的事件就是countDown事件,只有该countDown事件执行后所有之前在等待的线程才有可能继续执行;而栅栏没有类似countDown事件控制线程的执行,只有线程的await方法能控制等待的线程执行。
+1. **闭锁**用来等待事件，就是说闭锁用来等待的事件就是countDown事件,只有该countDown事件执行后所有之前在等待的线程才有可能继续执行;而栅栏没有类似countDown事件控制线程的执行,只有线程的await方法能控制等待的线程执行。
 
-2. ​	**栅栏**用来等待线程，CyclicBarrier强调的是n个线程，大家相互等待，只要有一个没完成，所有线程都得等着。
+2. **栅栏**用来等待线程，CyclicBarrier强调的是n个线程，大家相互等待，只要有一个没完成，所有线程都得等着。
 
    闭锁是一次性对象，一旦进入终止状态，就不能重置。而栅栏可以使一定数量的参入方反复的在栅栏位置汇集。
    
@@ -1034,6 +1059,7 @@ static final class FairSync extends Sync {
 ### 【Synchronize的实现原理】    
 
 ​	**锁的数据结构：**
+
 ​	同步代码块是使用monitorenter和monitorexit指令实现的，任何java对象都有一个monitor与之关联，当一个monitor被持有后，对象就处于锁定状态。
 
 ​	Synchronized是通过对象内部的一个叫做监视器锁（monitor）来实现的。但是监视器锁本质又是依赖于底层的操作系统的Mutex Lock来实现的。
@@ -1093,7 +1119,7 @@ Condition newCondition();
 ​	实现类：
 
 ~~~java
-//可重入锁
+// 可重入锁
 ReentrantLock.class;
 // 读写锁    
 ReentrantReadWriteLock.class    
@@ -1376,15 +1402,15 @@ public final native boolean compareAndSwapInt(Object var1, long var2, int var4, 
 **底层原理**
 CPU实现原理指令有两种方式：
 
-- ​	**通过总线锁定来保证原子性**
+- **通过总线锁定来保证原子性**
   ​	总线锁定其实就是处理器使用了总线锁，所谓总线锁就是使用处理器提供的一个 LOCK# 信号，当一个处理器在总线上输出此信号时，其他处理器的请求将被阻塞住，那么该处理器可以独占共享内存。但是该方法成本太大。因此有了下面的方式。
-- ​	**通过缓存锁来保证**
+- **通过缓存锁来保证**
   ​	所谓缓存锁定是指内存区域如果被缓存在处理器的缓存行中，并且在Lock操作期间被锁定，那么当它执行锁操作写回内存时，处理器不在总线上声言LOCK#信号，而是修改内部地址，并允许它的缓存一致性机制来保证操作的原子性，因为缓存一致性机制会阻止同时修改两个以上处理器缓存的内存区域数据，当其他处理器回写已被锁定的缓存行的数据时，会使缓存行无效。
 
 有两种情况下处理器不会使用缓存锁定：
 
-- ​	当操作的数据不能被缓存在处理器内部，或操作的数据跨多个缓存行时，则处理器会调用总总线锁定；
-- ​	有些处理器不支持缓存锁定，对于Intel486和pentinum处理器，就是锁定的内存区域在处理器的缓存航也会调用总线锁定。
+- 当操作的数据不能被缓存在处理器内部，或操作的数据跨多个缓存行时，则处理器会调用总总线锁定；
+- 有些处理器不支持缓存锁定，对于Intel486和pentinum处理器，就是锁定的内存区域在处理器的缓存航也会调用总线锁定。
 
 **CAS缺点**
 
@@ -1521,16 +1547,18 @@ public CountDownLatch(int count) {  };
 
 ```java
 //调用await()方法的线程会被挂起，它会等待直到count值为0才继续执行
-public void await() throws InterruptedException { };   
+public void await() throws InterruptedException { }; 
+
 //和await()类似，只不过等待一定的时间后count值还没变为0的话就会继续执行
 public boolean await(long timeout, TimeUnit unit) throws InterruptedException { };  
+
 //将count值减1
 public void countDown() { };  
 ```
 
 **使用**：
 
-原文链接：https://blog.csdn.net/liangyihuai/article/details/83106584
+[原文链接](https://blog.csdn.net/liangyihuai/article/details/83106584)
 
 ~~~java
 public class CountDownLatchTest {
@@ -1572,24 +1600,20 @@ public class CountDownLatchTest {
 结果：
 
 ~~~java
-main function is finished.
-队友1, 通过了第0个障碍物, 使用了 1.432s
-队友0, 通过了第0个障碍物, 使用了 1.465s
-队友2, 通过了第0个障碍物, 使用了 2.26s
-队友1, 通过了第1个障碍物, 使用了 1.542s
-队友0, 通过了第1个障碍物, 使用了 2.154s
-队友2, 通过了第1个障碍物, 使用了 2.556s
-队友1, 通过了第2个障碍物, 使用了 1.426s
-队友2, 通过了第2个障碍物, 使用了 2.603s
-队友0, 通过了第2个障碍物, 使用了 2.784s
-
+正在等待所有玩家准备好
+player0 已经准备好了, 所使用的时间为 1.235s
+player2 已经准备好了, 所使用的时间为 1.279s
+player3 已经准备好了, 所使用的时间为 1.358s
+player1 已经准备好了, 所使用的时间为 2.583s
+开始游戏
 ~~~
 
 
 
 **CountDownLatch和CyclicBarrier区别：**  
- 1.countDownLatch是一个计数器，线程完成一个记录一个，计数器递减，只能只用一次   
- 2.CyclicBarrier的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供reset功能，可以多次使用  
+
+1. CountDownLatch是一个计数器，线程完成一个记录一个，计数器递减，只能只用一次   
+2. CyclicBarrier的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供reset功能，可以多次使用  
 
 
 
@@ -1642,7 +1666,7 @@ public void reset() {
 
 **使用：**
 
-原文链接：https://blog.csdn.net/liangyihuai/article/details/83106584
+[原文链接](https://blog.csdn.net/liangyihuai/article/details/83106584)
 
 ~~~java
 public class CyclicBarrierTest {
@@ -1708,12 +1732,16 @@ main function is finished.
 **源码：**
 
 ~~~java
-void acquire():从此信号量获取一个许可，在提供一个许可前一直将线程阻塞，否则线程被中断。
+//从此信号量获取一个许可，在提供一个许可前一直将线程阻塞，否则线程被中断。
+void acquire();
 
-void release():释放一个许可，将其返回给信号量。
+//释放一个许可，将其返回给信号量。   
+void release();
 
-int availablePermits():返回此信号量中当前可用的许可数。
+//返回此信号量中当前可用的许可数。
+int availablePermits();
 
-boolean hasQueuedThreads():查询是否有线程正在等待获取。
+//查询是否有线程正在等待获取。
+boolean hasQueuedThreads();
 ~~~
 

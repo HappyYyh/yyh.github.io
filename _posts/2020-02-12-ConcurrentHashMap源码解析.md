@@ -66,7 +66,7 @@ public ConcurrentHashMap(int initialCapacity, float loadFactor) {
 
 ## 2、put
 
-
+存放值
 
 ~~~java
 /**
@@ -214,7 +214,7 @@ public V get(Object key) {
 
 ## **4、同步机制**
 
-　　前面分析了下ConcurrentHashMap的源码，那么，对于一个映射集合来说，ConcurrentHashMap是如果来做到并发安全，又是如何做到高效的并发的呢？
+　　前面分析了下`ConcurrentHashMap`的源码，那么，对于一个映射集合来说，`ConcurrentHashMap`是如果来做到并发安全，又是如何做到高效的并发的呢？
 
 　　首先是读操作，从源码中可以看出来，在get操作中，根本没有使用同步机制，也没有使用unsafe方法，所以读操作是支持并发操作的。
 
@@ -224,19 +224,18 @@ public V get(Object key) {
 
 　　这三个方法又是分别在什么情况下进行调用的呢？
 
-　　·tryPresize是在treeIfybin和putAll方法中调用，treeIfybin主要是在put添加元素完之后，判断该数组节点相关元素是不是已经超过8个的时候，如果超过则会调用这个方法来扩容数组或者把链表转为树。
-
-　　·helpTransfer是在当一个线程要对table中元素进行操作的时候，如果检测到节点的HASH值为MOVED的时候，就会调用helpTransfer方法，在helpTransfer中再调用transfer方法来帮助完成数组的扩容
-
-　　·addCount是在当对数组进行操作，使得数组中存储的元素个数发生了变化的时候会调用的方法。
+- `tryPresize`是在`treeIfybin`和`putAll`方法中调用，`treeIfybin`主要是在put添加元素完之后，判断该数组节点相关元素是不是已经超过8个的时候，如果超过则会调用这个方法来扩容数组或者把链表转为树。
+- `helpTransfer`是在当一个线程要对table中元素进行操作的时候，如果检测到节点的HASH值为MOVED的时候，就会调用`helpTransfer`方法，在`helpTransfer`中再调用transfer方法来帮助完成数组的扩容
+- `addCount`是在当对数组进行操作，使得数组中存储的元素个数发生了变化的时候会调用的方法。
 
 　
 
 　　**所以引起数组扩容的情况如下**：
 
-　　·只有在往map中添加元素的时候，在某一个节点的数目已经超过了8个，同时数组的长度又小于64的时候，才会触发数组的扩容。
+- 只有在往map中添加元素的时候，在某一个节点的数目已经超过了8个，同时数组的长度又小于64的时候，才会触发数组的扩容。
 
-　　·当数组中元素达到了sizeCtl的数量的时候，则会调用transfer方法来进行扩容
+- 当数组中元素达到了sizeCtl的数量的时候，则会调用transfer方法来进行扩容
+
 
 　　
 
@@ -250,21 +249,24 @@ public V get(Object key) {
 
 　　**那么，多个线程又是如何同步处理的呢？**
 
-　　在ConcurrentHashMap中，同步处理主要是通过Synchronized和unsafe两种方式来完成的。
+　　在ConcurrentHashMap中，同步处理主要是通过`Synchronized`和`unsafe`两种方式来完成的。
 
-　　·在取得sizeCtl、某个位置的Node的时候，使用的都是unsafe的方法，来达到并发安全的目的
+- 在取得sizeCtl、某个位置的Node的时候，使用的都是unsafe的方法，来达到并发安全的目的
 
-　　·当需要在某个位置设置节点的时候，则会通过Synchronized的同步机制来锁定该位置的节点。
+- 当需要在某个位置设置节点的时候，则会通过Synchronized的同步机制来锁定该位置的节点。
 
-　　·在数组扩容的时候，则通过处理的步长和fwd节点来达到并发安全的目的，通过设置hash值为MOVED
+- 在数组扩容的时候，则通过处理的步长和fwd节点来达到并发安全的目的，通过设置hash值为MOVED
 
-　　·当把某个位置的节点复制到扩张后的table的时候，也通过Synchronized的同步机制来保证现程安全
+- 当把某个位置的节点复制到扩张后的table的时候，也通过Synchronized的同步机制来保证现程安全
+
 
  
 
 ## 其他
 
 ### spread
+
+计算hash值
 
 ~~~java
 // 这里的h传入的是key的hashCode（）方法
@@ -304,6 +306,8 @@ static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
 
 
 ### initTable
+
+初始化Table
 
 ~~~java
 /**
