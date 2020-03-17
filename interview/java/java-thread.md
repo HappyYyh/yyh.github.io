@@ -448,7 +448,7 @@ ExecutorService executorService = Executors.newSingleThreadExecutor();//单个�
 
 ​	一般都是让线程自动停止
 
-​	如果要关闭线程池：`ExecutorService.shutdown`
+​	调用 Executor 的 `shutdown()` 方法会等待线程都执行完毕之后再关闭，但是如果调用的是 `shutdownNow()` 方法，则相当于调用每个线程的 `interrupt()` 方法。
 
 ​	如果非要杀死线程，
 

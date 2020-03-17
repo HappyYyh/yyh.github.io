@@ -417,6 +417,52 @@ JDK8中ConcurrentHashMap参考了JDK8 HashMap的实现，采用了**数组+链�
 
 ### 【ConcurrentHashMap的size()函数1.7和1.8的不同，或者介绍一下如果是你如何设计】
 
+1.7
+
+~~~java
+public int size() {
+    // Try a few times to get accurate count. On failure due to
+    // continuous async changes in table, resort to locking.
+    final Segment<K,V>[] segments = this.segments;
+    int size;
+    boolean overflow; // true if size overflows 32 bits
+    long sum;         // sum of modCounts
+    long last = 0L;   // previous sum
+    int retries = -1; // first iteration isn't retry
+    try {
+        for (;;) {
+            // 超过尝试次数，则对每个 Segment 加锁
+            if (retries++ == RETRIES_BEFORE_LOCK) {
+                for (int j = 0; j < segments.length; ++j)
+                    ensureSegment(j).lock(); // force creation
+            }
+            sum = 0L;
+            size = 0;
+            overflow = false;
+            for (int j = 0; j < segments.length; ++j) {
+                Segment<K,V> seg = segmentAt(segments, j);
+                if (seg != null) {
+                    sum += seg.modCount;
+                    int c = seg.count;
+                    if (c < 0 || (size += c) < 0)
+                        overflow = true;
+                }
+            }
+            // 连续两次得到的结果一致，则认为这个结果是正确的
+            if (sum == last)
+                break;
+            last = sum;
+        }
+    } finally {
+        if (retries > RETRIES_BEFORE_LOCK) {
+            for (int j = 0; j < segments.length; ++j)
+                segmentAt(segments, j).unlock();
+        }
+    }
+    return overflow ? Integer.MAX_VALUE : size;
+}
+~~~
+
 
 
 1.8
@@ -528,7 +574,7 @@ TreeMap中的元素默认按照keys的自然排序排列,其存储结构是红�
 
 - **List(有序,可重复) ** 
           
-          ​    **ArrayList**  
+              **ArrayList**  
           
           ​        底层数据结构是数组,查询快,增删慢  
           ​        线程不安全,效率高  
@@ -539,7 +585,7 @@ TreeMap中的元素默认按照keys的自然排序排列,其存储结构是红�
           ​    **LinkedList ** 
           ​        底层数据结构是链表,查询慢,增删快  
           ​        线程不安全,效率高    
-          
+      
 - **Set(无序,唯一)**
               **HashSet**  
                   底层数据结构是哈希表。             

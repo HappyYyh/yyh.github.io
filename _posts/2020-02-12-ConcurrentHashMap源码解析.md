@@ -1,6 +1,6 @@
 ---
 title: ConcurrentHashMap源码解析
-tags: ["Java集合框架"]
+tags: ["Java集合框架","源码"]
 ---
 
 尚未完成，参考资料：https://www.cnblogs.com/zerotomax/p/8687425.html
@@ -260,7 +260,7 @@ public V get(Object key) {
 - 当把某个位置的节点复制到扩张后的table的时候，也通过Synchronized的同步机制来保证现程安全
 
 
- 
+
 
 ## 其他
 
