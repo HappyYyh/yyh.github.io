@@ -486,29 +486,159 @@ new RejectedExecutionHandler(){
 ​	阻塞队列就是：
 
 1. 入队时，如果队列已经满了，就阻塞等待直到队列中有位置可以插入
+
+   LinkedBlockingQueue·`put`方法源码：
+
+   ~~~java
+   public void put(E e) throws InterruptedException {
+       if (e == null) throw new NullPointerException();
+       // Note: convention in all put/take/etc is to preset local var
+       // holding count negative to indicate failure unless set.
+       int c = -1;
+       Node<E> node = new Node<E>(e);
+       final ReentrantLock putLock = this.putLock;
+       final AtomicInteger count = this.count;
+       putLock.lockInterruptibly();
+       try {
+           /*
+                * Note that count is used in wait guard even though it is
+                * not protected by lock. This works because count can
+                * only decrease at this point (all other puts are shut
+                * out by lock), and we (or some other waiting put) are
+                * signalled if it ever changes from capacity. Similarly
+                * for all other uses of count in other wait guards.
+                */
+           while (count.get() == capacity) {
+               // 如果队列满了，则当前线程阻塞等待
+               notFull.await();
+           }
+           enqueue(node);
+           c = count.getAndIncrement();
+           if (c + 1 < capacity)
+               // 当有空闲位置时，唤醒一个等待的线程
+               notFull.signal();
+       } finally {
+           putLock.unlock();
+       }
+       if (c == 0)
+           signalNotEmpty();
+   }
+   ~~~
+
 2. 出队时，如果队列中为空，就阻塞等待直到队列中有数据可以出队列
+
+   LinkedBlockingQueue·`take`方法源码：
+
+   ~~~java
+   public E take() throws InterruptedException {
+       E x;
+       int c = -1;
+       final AtomicInteger count = this.count;
+       final ReentrantLock takeLock = this.takeLock;
+       takeLock.lockInterruptibly();
+       try {
+           // 如果队列为空
+           while (count.get() == 0) {
+               //阻塞等待
+               notEmpty.await();
+           }
+           x = dequeue();
+           c = count.getAndDecrement();
+           if (c > 1)
+               // 当队列不为空，唤醒阻塞的线程
+               notEmpty.signal();
+       } finally {
+           takeLock.unlock();
+       }
+       if (c == capacity)
+           signalNotFull();
+       return x;
+   }
+   ~~~
+
+   
 
 ​	Java中阻塞队列的实现：
 
-- ​	**ArrayBlockingQueue**
+- **ArrayBlockingQueue**
 
-  ​	基于**数组**实现的阻塞队列，初始化时需要定义数组的大小，也就是队列的大小，所以这个队列是一个有界队列。
+  基于**数组**实现的阻塞队列，初始化时需要定义数组的大小，也就是队列的大小，所以这个队列是一个有界队列。
 
-- ​	**LinkedBlockingQueue**
+- **LinkedBlockingQueue**
 
-  ​	基于**链表**实现的阻塞队列，既然是链表，那么就可以看出这种阻塞队列含有链表的特性，那就是无界。但是实际上LinkedBlockingQueue是有界队列，默认大小是Integer的最大值，而也可以通过构造方法传入固定的capacity大小设置
+  基于**链表**实现的阻塞队列，既然是链表，那么就可以看出这种阻塞队列含有链表的特性，那就是无界。但是实际上LinkedBlockingQueue是有界队列，默认大小是Integer的最大值，而也可以通过构造方法传入固定的capacity大小设置
 
-- ​	**DelayQueue**
+- **DelayQueue**
 
-  ​	**延迟队列**,顾名思义就是只有当元素达到指定的时间后才可以从队列中取出。
+  **延迟队列**,顾名思义就是只有当元素达到指定的时间后才可以从队列中取出。
 
-- ​	**PriorityBlockingQueue**
+- **PriorityBlockingQueue**
 
-  ​	有**优先级**的阻塞队列，底层也是通过数组实现，默认初始容量为11，容量不够会自动扩容，扩容的最大值为Integer的最大值-8（有些虚拟机再实现数组头部存储内容所预留的空间），所以基本上可以认为是无界阻塞队列
+  有**优先级**的阻塞队列，底层也是通过数组实现，默认初始容量为11，容量不够会自动扩容，扩容的最大值为Integer的最大值-8（有些虚拟机再实现数组头部存储内容所预留的空间），所以基本上可以认为是无界阻塞队列
 
-- ​	**SynchronousQueue**
+- **SynchronousQueue**
 
-  ​	SynchonousQueue是比较特殊的阻塞队列，特殊之处就是这个叫队列的队列没有容量，又或者说容量为0，所以一旦有元素插入此队列，由于没有容量，就必须被阻塞直到元素被取出
+  SynchonousQueue是比较特殊的阻塞队列，特殊之处就是这个叫队列的队列没有容量，又或者说容量为0，所以一旦有元素插入此队列，由于没有容量，就必须被阻塞直到元素被取出
+
+**应用：**
+
+解决**生产者消费者**问题
+
+~~~java
+public class ProducerConsumer {
+
+    private static BlockingQueue<String> queue = new ArrayBlockingQueue<>(5);
+
+    private static class Producer extends Thread {
+        @Override
+        public void run() {
+            try {
+                queue.put("product");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.print("produce..");
+        }
+    }
+
+    private static class Consumer extends Thread {
+        @Override
+        public void run() {
+            try {
+                String product = queue.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.print("consume..");
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        for (int i = 0; i < 2; i++) {
+            Producer producer = new Producer();
+            producer.start();
+        }
+        for (int i = 0; i < 5; i++) {
+            // 当2个消费完以后线程就会阻塞，直到有新的生产者
+            Consumer consumer = new Consumer();
+            consumer.start();
+        }
+        Thread.sleep(100);
+        for (int i = 0; i < 3; i++) {
+            Producer producer = new Producer();
+            producer.start();
+        }
+    }
+}
+~~~
+
+结果如下：
+
+~~~java
+produce..produce..consume..consume..produce..consume..produce..consume..produce..consume..
+~~~
+
+
 
   
 
@@ -1338,6 +1468,41 @@ public class Singleton {
 
 
 
+### 【Happen-Before原则】
+
+- **什么是happen-before**
+
+  （1）编写的程序都要经过优化（编译器和处理器会对程序进行优化）后才会被运行，优化分为很多种，其中有一种优化叫做重排序，**重排序需要遵守happens-before规则。**
+
+  （2）a happens-before b :happens-before关系保证a操作将对b操作可见。
+
+- **happen-before原则（前一个操作的执行结果必须对后一个操作可见）**
+
+  一个线程中的每一个操作happens-before于该线程的任意后续操作，这里的happens-before并不是前一个操作必须早于后一个操作， 而是前一个操作必须对后一个操作可见，否则不能重排序。
+
+- **具体规则**
+
+  1.   程序顺序规则：一个线程中的每个操作，happens-before于该线程中的任意后续操作。
+
+  2.  监视器锁规则：对一个锁的解锁，happens-before于随后对这个锁的加锁。
+
+  3.  volatile变量规则：对一个volatile域的写，happens-before于任意后续对这个volatile域的读。
+
+  4.  传递性：如果A happens-before B，且B happens-before C，那么A happens-before C。
+
+  5.  start()规则：如果线程A执行操作ThreadB.start()（启动线程B），那么A线程的ThreadB.start()操作happens-before于线程B中的任意操作。
+
+  6.  Join()规则：如果线程A执行操作ThreadB.join()并成功返回，那么线程B中的任意操作happens-before于线程A从ThreadB.join()操作成功返回。
+
+  7.  程序中断规则：对线程interrupted()方法的调用先行于被中断线程的代码检测到中断时间的发生。
+
+  8. 对象finalize规则：一个对象的初始化完成（构造函数执行结束）先行于发生它的finalize()方法的开始。
+  
+     
+  
+
+
+
 ## **CAS**
 
 ### 【原子类底层机制】
@@ -1558,54 +1723,31 @@ public void countDown() { };
 
 **使用**：
 
-[原文链接](https://blog.csdn.net/liangyihuai/article/details/83106584)
-
 ~~~java
 public class CountDownLatchTest {
 
     public static void main(String[] args) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(4);
-        for(int i = 0; i < latch.getCount(); i++){
-            new Thread(new MyThread(latch), "player"+i).start();
+        final int totalThread = 10;
+        CountDownLatch countDownLatch = new CountDownLatch(totalThread);
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        for (int i = 0; i < totalThread; i++) {
+            executorService.execute(() -> {
+                System.out.print("run..");
+                countDownLatch.countDown();
+            });
         }
-        System.out.println("正在等待所有玩家准备好");
-        latch.await();
-        System.out.println("开始游戏");
+        countDownLatch.await();
+        System.out.println("end");
+        executorService.shutdown();
     }
-
-    private static class MyThread implements Runnable{
-        private CountDownLatch latch ;
-
-        public MyThread(CountDownLatch latch){
-            this.latch = latch;
-        }
-
-        @Override
-        public void run() {
-            try {
-                Random rand = new Random();
-                int randomNum = rand.nextInt((3000 - 1000) + 1) + 1000;//产生1000到3000之间的随机整数
-                Thread.sleep(randomNum);
-                System.out.println(Thread.currentThread().getName()+" 已经准备好了, 所使用的时间为 "+((double)randomNum/1000)+"s");
-                latch.countDown();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-        }
-    }
+    
 }
 ~~~
 
 结果：
 
 ~~~java
-正在等待所有玩家准备好
-player0 已经准备好了, 所使用的时间为 1.235s
-player2 已经准备好了, 所使用的时间为 1.279s
-player3 已经准备好了, 所使用的时间为 1.358s
-player1 已经准备好了, 所使用的时间为 2.583s
-开始游戏
+run..run..run..run..run..run..run..run..run..run..end
 ~~~
 
 
@@ -1613,7 +1755,7 @@ player1 已经准备好了, 所使用的时间为 2.583s
 **CountDownLatch和CyclicBarrier区别：**  
 
 1. CountDownLatch是一个计数器，线程完成一个记录一个，计数器递减，只能只用一次   
-2. CyclicBarrier的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供reset功能，可以多次使用  
+2. CyclicBarrier的计数器更像一个阀门，需要所有线程都到达，然后继续执行，计数器递增，提供`reset`功能，可以多次使用  
 
 
 
@@ -1666,42 +1808,25 @@ public void reset() {
 
 **使用：**
 
-[原文链接](https://blog.csdn.net/liangyihuai/article/details/83106584)
-
 ~~~java
 public class CyclicBarrierTest {
+
     public static void main(String[] args) {
-        CyclicBarrier barrier = new CyclicBarrier(3);
-        for(int i = 0; i < barrier.getParties(); i++){
-            new Thread(new MyRunnable(barrier), "队友"+i).start();
-        }
-        System.out.println("main function is finished.");
-    }
-
-
-    private static class MyRunnable implements Runnable{
-        private CyclicBarrier barrier;
-
-        public MyRunnable(CyclicBarrier barrier){
-            this.barrier = barrier;
-        }
-
-        @Override
-        public void run() {
-            for(int i = 0; i < 3; i++) {
+        final int totalThread = 10;
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(totalThread);
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        for (int i = 0; i < totalThread; i++) {
+            executorService.execute(() -> {
+                System.out.print("before..");
                 try {
-                    Random rand = new Random();
-                    int randomNum = rand.nextInt((3000 - 1000) + 1) + 1000;//产生1000到3000之间的随机整数
-                    Thread.sleep(randomNum);
-                    System.out.println(Thread.currentThread().getName() + ", 通过了第"+i+"个障碍物, 使用了 "+((double)randomNum/1000)+"s");
-                    this.barrier.await();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (BrokenBarrierException e) {
+                    cyclicBarrier.await();
+                } catch (InterruptedException | BrokenBarrierException e) {
                     e.printStackTrace();
                 }
-            }
+                System.out.print("after..");
+            });
         }
+        executorService.shutdown();
     }
 }
 ~~~
@@ -1709,16 +1834,7 @@ public class CyclicBarrierTest {
 结果：
 
 ~~~java
-main function is finished.
-队友1, 通过了第0个障碍物, 使用了 1.432s
-队友0, 通过了第0个障碍物, 使用了 1.465s
-队友2, 通过了第0个障碍物, 使用了 2.26s
-队友1, 通过了第1个障碍物, 使用了 1.542s
-队友0, 通过了第1个障碍物, 使用了 2.154s
-队友2, 通过了第1个障碍物, 使用了 2.556s
-队友1, 通过了第2个障碍物, 使用了 1.426s
-队友2, 通过了第2个障碍物, 使用了 2.603s
-队友0, 通过了第2个障碍物, 使用了 2.784s
+before..before..before..before..before..before..before..before..before..before..after..after..after..after..after..after..after..after..after..after..
 ~~~
 
 
@@ -1743,5 +1859,40 @@ int availablePermits();
 
 //查询是否有线程正在等待获取。
 boolean hasQueuedThreads();
+~~~
+
+**使用：**
+
+以下代码模拟了对某个服务的并发请求，每次只能有 3 个客户端同时访问，请求总数为 10。
+
+~~~java
+public class SemaphoreTest {
+
+    public static void main(String[] args) {
+        final int clientCount = 3;
+        final int totalRequestCount = 10;
+        Semaphore semaphore = new Semaphore(clientCount);
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        for (int i = 0; i < totalRequestCount; i++) {
+            executorService.execute(()->{
+                try {
+                    semaphore.acquire();
+                    System.out.print(semaphore.availablePermits() + " ");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    semaphore.release();
+                }
+            });
+        }
+        executorService.shutdown();
+    }
+}
+~~~
+
+**结果：**
+
+~~~java
+1 0 0 1 2 2 0 1 2 2 
 ~~~
 
