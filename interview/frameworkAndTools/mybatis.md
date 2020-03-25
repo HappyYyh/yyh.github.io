@@ -167,7 +167,7 @@ public List<RoleBean> queryRolesByPage(String roleName, int start, int limit) {
 
 7. **MappedStatement**
 
-   MappedStatement维护一条<select|update|delete|insert>节点的封装
+   MappedStatement维护一条select|update|delete|insert节点的封装
 
 8. **SqlSource**
 

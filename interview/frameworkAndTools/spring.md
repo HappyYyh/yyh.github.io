@@ -276,9 +276,9 @@ private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
     Class<?> targetClass = clazz;//需要处理的目标类
 
     do {
-        final LinkedList<InjectionMetadata.InjectedElement> currElements = new 					LinkedList<>();
+        final LinkedList<InjectionMetadata.InjectedElement> currElements = new LinkedList<>();
 
-        /*通过反射获取该类所有的字段，并遍历每一个字段，并通过方法findAutowiredAnnotation遍历每一个字段的所用注解，并如果用autowired修饰了，则返回auotowired相关属性*/  
+        /*通过反射获取该类所有的字段，并遍历每一个字段，并通过方法findAutowiredAnnotation遍历每一个字段的所用注解，并如果用autowired修饰了，则返回auotowired相关属性*/
 
         ReflectionUtils.doWithLocalFields(targetClass, field -> {
             AnnotationAttributes ann = findAutowiredAnnotation(field);
@@ -296,11 +296,11 @@ private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
         //和上面一样的逻辑，但是是通过反射处理类的method
         ReflectionUtils.doWithLocalMethods(targetClass, method -> {
             Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
-            if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, 								bridgedMethod)) {
+            if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
                 return;
             }
             AnnotationAttributes ann = findAutowiredAnnotation(bridgedMethod);
-            if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, 					clazz))) {
+            if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
                 if (Modifier.isStatic(method.getModifiers())) {
                     if (logger.isWarnEnabled()) {
                         logger.warn("Autowired annotation is not supported on static 							methods: " + method);
@@ -313,7 +313,7 @@ private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
                     }
                 }
                 boolean required = determineRequiredStatus(ann);
-                PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, 					clazz);
+                PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
                 currElements.add(new AutowiredMethodElement(method, required, pd));
             }
         });
@@ -346,25 +346,26 @@ public PropertyValues postProcessPropertyValues(
     InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
     try {
         metadata.inject(bean, beanName, pvs);
-    }catch (BeanCreationException ex) {
+    } catch (BeanCreationException ex) {
         throw ex;
-    }catch (Throwable ex) {
+    } catch (Throwable ex) {
         throw new BeanCreationException(beanName, "Injection of autowired dependencies failed", ex);
     }
     return pvs;
 }
 
-/**inject也使用了反射技术并且依然是分成字段和方法去处理的。
- * Either this or {@link #getResourceToInject} needs to be overridden.
- */
-protected void inject(Object target, @Nullable String requestingBeanName, @Nullable 		PropertyValues pvs)
+    /**
+     * inject也使用了反射技术并且依然是分成字段和方法去处理的。
+     * Either this or {@link #getResourceToInject} needs to be overridden.
+     */
+protected void inject(Object target, @Nullable String requestingBeanName, @Nullable PropertyValues pvs)
     throws Throwable {
 
     if (this.isField) {
         Field field = (Field) this.member;
         ReflectionUtils.makeAccessible(field);
         field.set(target, getResourceToInject(target, requestingBeanName));
-    }else {
+    } else {
         if (checkPropertySkipping(pvs)) {
             return;
         }
@@ -372,8 +373,7 @@ protected void inject(Object target, @Nullable String requestingBeanName, @Nulla
             Method method = (Method) this.member;
             ReflectionUtils.makeAccessible(method);
             method.invoke(target, getResourceToInject(target, requestingBeanName));
-        }
-        catch (InvocationTargetException ex) {
+        } catch (InvocationTargetException ex) {
             throw ex.getTargetException();
         }
     }
