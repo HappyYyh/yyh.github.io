@@ -42,7 +42,7 @@ key: microservicesAndDistribution-redis
 
 6. 高可用：   
 
-   主从复制： 主服务器，从服务器 
+   主从复制： 主服务器写，从服务器读
 
 7. 分布式：  
 

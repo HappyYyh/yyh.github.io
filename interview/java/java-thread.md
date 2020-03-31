@@ -76,7 +76,6 @@ key: java-thread
 
 
 
-
 ### 【线程的状态】
 
 1.   **新建状态(New):** 
@@ -104,6 +103,88 @@ key: java-thread
 6.   **死亡状态(Dead):** 
 
 ​		线程执行完了或者因异常退出了run()方法，该线程结束生命周期。
+
+实际中，Thead类中有一个枚举类就是用于描述线程的状态：
+
+~~~java
+public enum State {
+        /**
+         * Thread state for a thread which has not yet started.
+         */
+        NEW,
+
+        /**
+         * Thread state for a runnable thread.  A thread in the runnable
+         * state is executing in the Java virtual machine but it may
+         * be waiting for other resources from the operating system
+         * such as processor.
+         */
+        RUNNABLE,
+
+        /**
+         * Thread state for a thread blocked waiting for a monitor lock.
+         * A thread in the blocked state is waiting for a monitor lock
+         * to enter a synchronized block/method or
+         * reenter a synchronized block/method after calling
+         * {@link Object#wait() Object.wait}.
+         */
+        BLOCKED,
+
+        /**
+         * Thread state for a waiting thread.
+         * A thread is in the waiting state due to calling one of the
+         * following methods:
+         * <ul>
+         *   <li>{@link Object#wait() Object.wait} with no timeout</li>
+         *   <li>{@link #join() Thread.join} with no timeout</li>
+         *   <li>{@link LockSupport#park() LockSupport.park}</li>
+         * </ul>
+         *
+         * <p>A thread in the waiting state is waiting for another thread to
+         * perform a particular action.
+         *
+         * For example, a thread that has called <tt>Object.wait()</tt>
+         * on an object is waiting for another thread to call
+         * <tt>Object.notify()</tt> or <tt>Object.notifyAll()</tt> on
+         * that object. A thread that has called <tt>Thread.join()</tt>
+         * is waiting for a specified thread to terminate.
+         */
+        WAITING,
+
+        /**
+         * Thread state for a waiting thread with a specified waiting time.
+         * A thread is in the timed waiting state due to calling one of
+         * the following methods with a specified positive waiting time:
+         * <ul>
+         *   <li>{@link #sleep Thread.sleep}</li>
+         *   <li>{@link Object#wait(long) Object.wait} with timeout</li>
+         *   <li>{@link #join(long) Thread.join} with timeout</li>
+         *   <li>{@link LockSupport#parkNanos LockSupport.parkNanos}</li>
+         *   <li>{@link LockSupport#parkUntil LockSupport.parkUntil}</li>
+         * </ul>
+         */
+        TIMED_WAITING,
+
+        /**
+         * Thread state for a terminated thread.
+         * The thread has completed execution.
+         */
+        TERMINATED;
+}
+~~~
+
+- **RUNNABLE** 线程运行中或I/O等待
+- **BLOCKED** 线程在等待monitor锁(synchronized关键字)
+- **TIMED_WAITING** 线程在等待唤醒，但设置了时限
+  - 调用Thread.sleep方法。
+  - 调用Object对象的wait方法，指定超时值。
+  - 调用Thread对象的join方法，指定超时值。
+  - 调用LockSupport对象的parkNanos方法。
+  - 调用LockSupport对象的parkUntil方法。
+- **WAITING** 线程在无限等待唤醒
+  - 调用Object对象的wait方法，但没有指定超时值。
+  - 调用Thread对象的join方法，但没有指定超时值。
+  - 调用LockSupport对象的park方法。
 
 
 
